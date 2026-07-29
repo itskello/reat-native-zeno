@@ -1,0 +1,18 @@
+export const colors = {
+  zenoBlue: "#0057FF",
+  zenoBlueLight: "#EAF6FF",
+  zenoGreen: "#C7FF4A",
+  zenoDark: "#0A1712",
+  zenoBackground: "#F4FAFF",
+  zenoSky: "#EAF6FF",
+  zenoSurface: "#FFFFFF",
+  zenoSurfaceSoft: "#F1F7FF",
+  zenoBorder: "#D9E4FF",
+  zenoTextPrimary: "#071706",
+  zenoTextSecondary: "#6B7280",
+  success: "#22C55E",
+  warning: "#F59E0B",
+  error: "#EF4444",
+  shadowSoft: "rgba(10, 23, 18, 0.08)",
+  shadowStrong: "rgba(10, 23, 18, 0.12)",
+} as const;
