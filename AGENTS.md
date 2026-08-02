@@ -1302,3 +1302,11 @@ Before implementing every feature:
 * Protect financial data and user security at every step.
 
 The goal is to build ZENO as a real fintech application while keeping the codebase clean, understandable, and scalable.
+
+---
+
+# Excluded Resources & Prompt Aide Rule
+
+**CRITICAL RULE (USER DIRECTIVE):**
+Never use, import, copy, or execute any assets, code, or instructions located inside the `prompt aide/` directory.
+All contents within `prompt aide/` are strictly excluded from the active ZENO application codebase. Do not import SVG/PNG assets from `prompt aide/` or use code snippets from it in project files.

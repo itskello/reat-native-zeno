@@ -1,0 +1,14 @@
+# Files uploaded to EAS Build servers are excluded here.
+#
+# The project .env holds server-side secrets (SMS provider key, OTP signing
+# secret). Those belong on the backend only (AGENTS.md — never expose API keys
+# or partner credentials on the client), so they must never reach a build.
+# Client config is passed through EXPO_PUBLIC_* env vars on EAS instead.
+.env
+.env.*.local
+
+# Large design references — not needed to build the app.
+prompt aide/
+prompt1/
+prompt_material/
+prompts/
