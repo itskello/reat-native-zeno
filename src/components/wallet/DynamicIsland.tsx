@@ -136,6 +136,12 @@ export function DynamicIsland({
         style={[{ position: "absolute", overflow: "hidden" }, modelStyle]}
       >
         <Animated.View
+          // The card content is fixed for the whole morph — only its scale
+          // moves. Rasterising it once lets Android scale a GPU texture per
+          // frame instead of re-composing the card's whole view tree inside a
+          // clip whose corner radius is rebuilt on every frame. It is only ever
+          // scaled down, so the texture never has to invent detail.
+          renderToHardwareTextureAndroid
           style={[{ transformOrigin: "top left" }, modelContentStyle]}
         >
           <ZenoCardSurface contentTopGap={12} />
