@@ -2,6 +2,14 @@ export const colors = {
   zenoBlue: "#0057FF",
   zenoBlueLight: "#EAF6FF",
   zenoGreen: "#C7FF4A",
+  /**
+   * ZENO Green is unreadable on white — it is a highlight, not a text colour.
+   * This is the same hue darkened to carry link text and icons on light
+   * surfaces (the "See all" link on the ZENO Card sheet).
+   */
+  zenoGreenDeep: "#7DBB2E",
+  /** App Shell behind the ZENO Card hero — the room's light green family. */
+  zenoCardShell: "#E4F4C6",
   zenoDark: "#0A1712",
   zenoIntro: "#1B2812",
   zenoBackground: "#F4FAFF",

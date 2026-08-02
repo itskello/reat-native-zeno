@@ -9,6 +9,8 @@ module.exports = {
           blue: "#0057FF",
           "blue-light": "#EAF6FF",
           green: "#C7FF4A",
+          "green-deep": "#7DBB2E",
+          "card-shell": "#E4F4C6",
           dark: "#0A1712",
           intro: "#1B2812",
           background: "#F4FAFF",
@@ -33,6 +35,7 @@ module.exports = {
         bold: ["SFProDisplay-Bold", "system-ui", "sans-serif"],
         heavy: ["SFProDisplay-Heavy", "system-ui", "sans-serif"],
         condensed: ["ZalandoCondensed-Regular", "system-ui", "sans-serif"],
+        "condensed-bold": ["ZalandoCondensed-Bold", "system-ui", "sans-serif"],
       },
       fontSize: {
         display: ["36px", { lineHeight: "43.2px", letterSpacing: "-0.02em" }],

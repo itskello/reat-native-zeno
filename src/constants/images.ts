@@ -8,6 +8,8 @@ export const images = {
   linkIcon: require("../../assets/images/link.png"),
   sendMoney: require("../../assets/images/send.png"),
   withdraw: require("../../assets/images/Withdraw.png"),
+  /** The two stacked ZENO virtual cards, transparent background. */
+  zenoCard: require("../../assets/images/Zenocard.png"),
   secureGreen: require("../../assets/images/secure green.png"),
   bioSetupPadlock: require("../../assets/images/setup biometric.png"),
   bioSetupFingerprint: require("../../assets/images/BIO - setup fingprint.png"),

@@ -4,9 +4,13 @@ import { WalletHomeSurface } from "@/components/wallet/WalletHomeSurface";
 import { WalletSurface } from "@/components/wallet/WalletSurface";
 import type { WalletScreen } from "@/data/wallet-screens";
 import { useWalletNav, useWalletRoom } from "@/store/wallet-nav";
+import { cardDragY } from "@/store/wallet-gesture";
+import { colors } from "@/theme/colors";
 import { View } from "react-native";
-import {
+import Animated, {
+  interpolateColor,
   useAnimatedScrollHandler,
+  useAnimatedStyle,
   useSharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -48,8 +52,19 @@ export function WalletNavigator() {
     );
   });
 
+  // Each room has its own colour family; the shell behind the ZENO Card is the
+  // light green one. It follows the drag rather than the room state so the
+  // shell and the island morph together, frame for frame.
+  const shellStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      cardDragY.value,
+      [0, 300],
+      [colors.zenoBackground, colors.zenoCardShell]
+    ),
+  }));
+
   return (
-    <View className="flex-1 bg-zeno-background">
+    <Animated.View className="flex-1" style={shellStyle}>
       <WalletHomeSurface
         onScroll={onScroll}
         scrollY={scrollY}
@@ -83,7 +98,7 @@ export function WalletNavigator() {
       >
         <DynamicIsland collapse={collapse} liftDistance={ISLAND_HEIGHT / 2} />
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
