@@ -30,8 +30,10 @@ export default function VerifyPinScreen() {
 
   const isComplete = pin.length === PIN_LENGTH;
 
-  // If this account has no local PIN (e.g. onboarding didn't set one on this
-  // device), there is nothing to unlock — send them straight to the wallet.
+  // A PIN is stored per app sandbox, so an account onboarded elsewhere — another
+  // device, or a different build of ZENO on this one — arrives here with nothing
+  // to check against. Enrol a PIN instead of waving the user through: an unlock
+  // gate that disappears when its secret is missing is not a gate.
   useEffect(() => {
     let cancelled = false;
 
@@ -41,9 +43,7 @@ export default function VerifyPinScreen() {
       }
       const exists = await hasPin(user.id);
       if (!cancelled && !exists) {
-        // No local PIN to check (e.g. onboarded on another device). Skip the
-        // unlock but keep the same login transition into the wallet.
-        router.replace("/connection-success");
+        router.replace("/create-pin");
       }
     };
 
