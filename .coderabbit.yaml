@@ -1,0 +1,95 @@
+# CodeRabbit configuration for ZENO
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+
+language: "fr"
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+
+  path_instructions:
+    - path: "src/app/**"
+      instructions: |
+        This is an Expo Router screen file. Screens should only handle routing,
+        layout, and composition of components. Flag any business logic, direct
+        API calls, financial calculations, or large reusable UI blocks found
+        in a screen file — these must live in features/, components/, or lib/.
+
+    - path: "src/components/wallet/**"
+      instructions: |
+        This is part of the ZENO Wallet Ecosystem. Key rules:
+        - The Dynamic Island (DynamicIsland.tsx) drives navigation via cardDragY
+          shared value and the wallet-nav Zustand store. Screens must not manage
+          their own transitions.
+        - WalletHeroCard.tsx must NOT be modified without explicit approval.
+        - Surface backgrounds on Card-room components must remain transparent —
+          an opaque background would cover the siphon neck of the liquid morph.
+        - Gestures (openCardGesture, closeCardGesture) must not be broken.
+        - NativeWind classes are the primary styling method. StyleSheet is only
+          allowed for: SafeAreaView, KeyboardAvoidingView, Animated.View values,
+          runtime-calculated dimensions, and complex shadows.
+
+    - path: "src/components/wallet/IslandLiquidShape.tsx"
+      instructions: |
+        Performance-critical file. The metaball technique requires:
+        - Both island bodies must be Animated.View (GPU path, not SVG).
+        - Only the junction band (~NECK_BAND Lottie units) goes through SVG.
+        - Both rects must share ONE <G filter="..."> — separate filters prevent
+          the halos from summing and the neck never appears.
+        - filterUnits must stay "userSpaceOnUse".
+        Flag any change that widens the SVG canvas back to full screen height.
+
+    - path: "src/lib/server/**"
+      instructions: |
+        CRITICAL: Nothing in src/lib/server/ may be imported from a screen or
+        client component. These files must never use EXPO_PUBLIC_ env vars.
+        All sensitive operations (API keys, financial logic, tokens) must stay
+        here, never on the client.
+
+    - path: "src/store/**"
+      instructions: |
+        Zustand stores. Financial data (balance, transactions, card info) must
+        only be populated from backend API calls — never hardcoded or trusted
+        from client input. Flag any direct mutation of financial state without
+        a server round-trip.
+
+    - path: "src/app/api/**"
+      instructions: |
+        Server-side API routes (Expo Router API routes). These run on the server.
+        Secrets and API keys are safe here. Validate all inputs. Never return
+        sensitive data the client does not strictly need.
+
+    - path: "tailwind.config.js"
+      instructions: |
+        Only tokens from the ZENO design system are allowed. Flag any new colour,
+        font family, or radius value not documented in AGENTS.md. The palette
+        must remain: blue #0057FF, green #C7FF4A, dark #0A1712, and their
+        documented variants.
+
+    - path: "src/app/verify-pin.tsx"
+    - path: "src/app/create-pin.tsx"
+    - path: "src/app/confirm-pin.tsx"
+      instructions: |
+        Security-sensitive PIN screens. Flag any change that could allow a user
+        to bypass PIN entry, skip to the wallet without verification, or expose
+        the raw PIN value. The PIN must always be hashed before storage.
+
+  finishing_touches:
+    docstrings:
+      enabled: true
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  opt_out: false
+  learnings:
+    scope: auto
+  issues:
+    scope: auto
+
+early_access: false
