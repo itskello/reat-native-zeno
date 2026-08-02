@@ -1,8 +1,10 @@
+import { tokenCache } from "@/lib/token-cache";
+import { ClerkProvider } from "@clerk/clerk-expo";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useState } from "react";
-import { View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "../../global.css";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -39,8 +41,19 @@ export default function RootLayout() {
   }
 
   return (
-    <View className="flex-1" onLayout={onLayoutRootView}>
-      <Stack screenOptions={{ headerShown: false }} />
-    </View>
+    <ClerkProvider
+      publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
+      tokenCache={tokenCache}
+    >
+      <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: "fade",
+            animationDuration: 450,
+          }}
+        />
+      </GestureHandlerRootView>
+    </ClerkProvider>
   );
 }
