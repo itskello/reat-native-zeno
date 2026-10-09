@@ -25,7 +25,8 @@
       "backgroundColor": "#208AEF"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,

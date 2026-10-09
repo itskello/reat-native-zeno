@@ -56,12 +56,7 @@ export function useEmailVerification() {
         // mismatch — e.g. "Phone number" left ON as a required identifier while
         // ZENO deliberately keeps the phone outside Clerk (in unsafeMetadata).
         // Surface exactly what Clerk is still waiting on so it can be fixed.
-        console.warn("[clerk] sign-up not complete after email verification", {
-          status: attempt.status,
-          missingFields: attempt.missingFields,
-          unverifiedFields: attempt.unverifiedFields,
-          requiredFields: attempt.requiredFields,
-        });
+        console.warn("[clerk] sign-up not complete after email verification", attempt);
 
         setError(
           "Your email is verified, but the account could not be finalized. " +

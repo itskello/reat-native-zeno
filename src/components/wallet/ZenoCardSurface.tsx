@@ -2,16 +2,15 @@ import { ArrowIcon } from "@/components/ui/ArrowIcon";
 import { CloseIcon } from "@/components/ui/CloseIcon";
 import { EyeIcon } from "@/components/ui/EyeIcon";
 import { images } from "@/constants/images";
-import { gesture, springs } from "@/constants/motion";
+import { springs } from "@/constants/motion";
 import { formatAmount, getCurrency } from "@/data/currencies";
 import { cardDragY } from "@/store/wallet-gesture";
 import { useWalletNav } from "@/store/wallet-nav";
 import { useWalletStore } from "@/store/wallet-store";
 import { colors } from "@/theme/colors";
 import { Image } from "expo-image";
-import { Pressable, Text, View } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { runOnJS, withSpring } from "react-native-reanimated";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { withSpring } from "react-native-reanimated";
 
 type ZenoCardSurfaceProps = {
   contentTopGap: number;
@@ -94,34 +93,16 @@ export function ZenoCardSurface({ contentTopGap }: ZenoCardSurfaceProps) {
     goHome();
   };
 
-  const closeCardGesture = Gesture.Pan()
-    .activeOffsetY([-12, 12])
-    .onUpdate((event) => {
-      if (event.translationY < 0) {
-        cardDragY.value = Math.max(0, 300 + event.translationY);
-      }
-    })
-    .onFinalize((event, success) => {
-      if (success) {
-        const pulledUp = -event.translationY;
-        if (
-          pulledUp > gesture.distanceThreshold ||
-          -event.velocityY > gesture.velocityThreshold
-        ) {
-          cardDragY.value = withSpring(0, springs.liquid);
-          runOnJS(goHome)();
-          return;
-        }
-      }
-      cardDragY.value = withSpring(300, springs.liquid);
-    });
-
   return (
-    <GestureDetector gesture={closeCardGesture}>
+    <ScrollView
+      className="flex-1"
+      contentContainerStyle={{ paddingTop: contentTopGap, paddingBottom: 36 }}
+      showsVerticalScrollIndicator={false}
+    >
       {/* No background: the Dynamic Island's liquid shape paints the dark
           surface behind this content, so an opaque rect here would cover the
           siphon neck with a hard edge. */}
-      <View className="flex-1" style={{ paddingTop: contentTopGap }}>
+      <View className="flex-1">
         {/* Header — "ZENO Card" centred, dismiss cross on the right. */}
         <View className="h-[34px] flex-row items-center justify-center px-6">
           <Image
@@ -276,7 +257,7 @@ export function ZenoCardSurface({ contentTopGap }: ZenoCardSurfaceProps) {
           </View>
         </View>
       </View>
-    </GestureDetector>
+    </ScrollView>
   );
 }
 

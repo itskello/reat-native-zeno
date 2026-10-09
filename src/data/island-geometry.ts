@@ -1,10 +1,28 @@
 /**
  * Dynamic Island morph geometry.
  *
- * These numbers are extracted verbatim from `prompt1/ANIMIX/Zenocard.lottie`
- * (layers `islande` and `islande model`), authored on a 393 x 852 canvas. They
- * are the design contract for the siphon effect and must not be approximated —
- * the overlap they produce is what generates the liquid neck.
+ * These numbers come from `prompt1/ANIMIX/Zenocard.lottie` (layers `islande`
+ * and `islande model`), authored on a 393 x 852 canvas. They are the design
+ * contract for the siphon effect and must not be approximated — the overlap
+ * they produce is what generates the liquid neck.
+ *
+ * Three deliberate corrections to the Lottie's own values, all on the open
+ * model — see MODEL_OPEN for the numbers:
+ *
+ * 1. Centring. The Lottie places the open model at x=15 with a width of 378 on
+ *    a 393 canvas, so it touches the right edge (margins 15 | 0). Both states
+ *    are centred here instead.
+ * 2. Separation. The Lottie leaves 2.45px between the pill's bottom (y=75) and
+ *    the open model's top (y=77.45). The fuse blur is 14px, so at that distance
+ *    the two bodies can never come apart and the card reads as permanently
+ *    welded to the pill. The open model is pushed to y=105 — clear of NECK_BAND
+ *    (90), where the metaball has no source to fuse with. The siphon still
+ *    plays through the morph; it only releases at full openness.
+ * 3. Corner radius. The Lottie's open model uses r=103.86 on a 378-wide shape
+ *    (ratio 0.275 — nearly an oval). The locked design system tops out at
+ *    "Large 28–32px", so the open state uses r=32. The closed radius stays at
+ *    the Lottie's 13.09, which is exactly half its 26px height: a true pill,
+ *    and hidden behind the capsule anyway.
  *
  * `openness`: 1 = ZENO Card fully open (Lottie t0), 0 = closed (Lottie t60).
  */
@@ -27,14 +45,14 @@ export const PILL_CLOSED: IslandBox = { x: 12, y: 0, w: 370, h: 75, r: 37.5 };
 
 /** `islande model` — the card surface. It shrinks in behind the pill. */
 export const MODEL_OPEN: IslandBox = {
-  x: 15,
-  y: 77.4531,
+  x: 7.5,
+  y: 105,
   w: 377.9955,
-  h: 763.2802,
-  r: 103.8596,
+  h: 736,
+  r: 32,
 };
 export const MODEL_CLOSED: IslandBox = {
-  x: 133,
+  x: 129.5,
   y: 25,
   w: 134.06,
   h: 26.1836,

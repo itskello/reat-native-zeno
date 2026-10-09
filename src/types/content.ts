@@ -75,18 +75,17 @@ export type Currency = {
 /* -------------------------------------------------------------------------- */
 
 /** Stable identifier for a Mobile Money operator. Add new providers here. */
-export type MobileMoneyProviderId = "mtn" | "moov" | "orange";
+export type MobileMoneyProviderId = "mtn" | "moov" | "celtiis" | "orange";
+
+/** Operators whose brand mark is bundled in `images.providers`. */
+export type ProviderLogoKey = "mtn" | "moov" | "celtiis";
 
 export type MobileMoneyProvider = {
   id: MobileMoneyProviderId;
   /** Display name, e.g. "MTN Mobile Money". */
   name: string;
-  /**
-   * Key into a future `images.providers` map (added once brand logos are
-   * available). Kept as a string so no broken `require()` ships before the
-   * assets exist — the UI resolves it to a real asset later.
-   */
-  logoKey: string;
+  /** Key into `images.providers`. Absent while a brand mark is still pending. */
+  logoKey?: ProviderLogoKey;
   /** Countries where this provider is available. */
   availableIn: CountryId[];
 };

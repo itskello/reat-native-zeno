@@ -1,4 +1,4 @@
-import { PinPad, PIN_LENGTH } from "@/components/auth/PinPad";
+import { PIN_LENGTH, PinPad } from "@/components/auth/PinPad";
 import { images } from "@/constants/images";
 import { Image } from "expo-image";
 import { router } from "expo-router";
@@ -51,7 +51,7 @@ export default function CreatePinScreen() {
           className="mt-4 font-medium text-[19px] leading-[26px] text-zeno-text-subtitle"
           allowFontScaling={false}
         >
-          Create a 4-digit PIN to secure your account.
+          Create an 8-digit PIN to secure your account.
         </Text>
 
         <View className="mt-[56px] flex-1">

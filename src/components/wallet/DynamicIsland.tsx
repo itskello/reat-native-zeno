@@ -1,20 +1,26 @@
+import { GetPaidSurface } from "@/components/wallet/GetPaidSurface";
 import { IslandLiquidShape } from "@/components/wallet/IslandLiquidShape";
+import { SendMoneySurface } from "@/components/wallet/SendMoneySurface";
+import { WithdrawSurface } from "@/components/wallet/WithdrawSurface";
 import { ZenoCardSurface } from "@/components/wallet/ZenoCardSurface";
 import { images } from "@/constants/images";
 import {
-  ISLAND_CANVAS_WIDTH,
-  modelBox,
-  pillBox,
+    ISLAND_CANVAS_WIDTH,
+    modelBox,
+    pillBox,
 } from "@/data/island-geometry";
+import { isIslandRoom, type WalletScreen } from "@/data/wallet-screens";
 import { cardDragY } from "@/store/wallet-gesture";
-import { useWalletIslandTitle } from "@/store/wallet-nav";
+import { useWalletIslandTitle, useWalletNav, useWalletRoom } from "@/store/wallet-nav";
 import { Image } from "expo-image";
 import { Text, View, useWindowDimensions } from "react-native";
 import Animated, {
-  interpolate,
-  useAnimatedStyle,
-  useDerivedValue,
-  type SharedValue,
+    interpolate,
+    runOnJS,
+    useAnimatedReaction,
+    useAnimatedStyle,
+    useDerivedValue,
+    type SharedValue,
 } from "react-native-reanimated";
 
 type DynamicIslandProps = {
@@ -41,12 +47,34 @@ export function DynamicIsland({
 }: DynamicIslandProps) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const title = useWalletIslandTitle();
+  const room = useWalletRoom();
+  const clearClosing = useWalletNav((s) => s.clearClosing);
+
+  /**
+   * Which room the model is showing. It falls back to CARD at Home so the
+   * pull-down gesture has the card already mounted to reveal — the model is
+   * never empty, it is only ever collapsed to 134x26 behind the pill.
+   */
+  const modelRoom: WalletScreen = room && isIslandRoom(room) ? room : "CARD";
 
   const scale = windowWidth / ISLAND_CANVAS_WIDTH;
 
   /** 0 = card closed (resting pill), 1 = card fully open. */
   const openness = useDerivedValue(() =>
     interpolate(cardDragY.value, [0, 300], [0, 1], "clamp")
+  );
+
+  /**
+   * An island room stays mounted through its whole collapse — it is clipped by
+   * the shrinking model, not unmounted — so `closing` can only be released once
+   * the morph has actually finished. `WalletSurface` does this for the rooms it
+   * hosts; for island rooms the morph is `cardDragY`, so it is watched here.
+   */
+  useAnimatedReaction(
+    () => openness.value < 0.01,
+    (settled, previous) => {
+      if (settled && previous === false) runOnJS(clearClosing)();
+    }
   );
 
   /** The pill's own geometry — it widens as the card closes. */
@@ -136,15 +164,23 @@ export function DynamicIsland({
         style={[{ position: "absolute", overflow: "hidden" }, modelStyle]}
       >
         <Animated.View
-          // The card content is fixed for the whole morph — only its scale
+          // The room content is fixed for the whole morph — only its scale
           // moves. Rasterising it once lets Android scale a GPU texture per
-          // frame instead of re-composing the card's whole view tree inside a
-          // clip whose corner radius is rebuilt on every frame. It is only ever
+          // frame instead of re-composing the whole view tree inside a clip
+          // whose corner radius is rebuilt on every frame. It is only ever
           // scaled down, so the texture never has to invent detail.
           renderToHardwareTextureAndroid
           style={[{ transformOrigin: "top left" }, modelContentStyle]}
         >
-          <ZenoCardSurface contentTopGap={12} />
+          {modelRoom === "SEND" ? (
+            <SendMoneySurface contentTopGap={12} />
+          ) : modelRoom === "GETPAID" ? (
+            <GetPaidSurface contentTopGap={12} />
+          ) : modelRoom === "WITHDRAW" ? (
+            <WithdrawSurface contentTopGap={12} />
+          ) : (
+            <ZenoCardSurface contentTopGap={12} />
+          )}
         </Animated.View>
       </Animated.View>
 

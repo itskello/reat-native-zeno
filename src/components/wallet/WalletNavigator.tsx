@@ -3,15 +3,16 @@ import { FeatureStub } from "@/components/wallet/FeatureStub";
 import { WalletHomeSurface } from "@/components/wallet/WalletHomeSurface";
 import { WalletSurface } from "@/components/wallet/WalletSurface";
 import type { WalletScreen } from "@/data/wallet-screens";
-import { useWalletNav, useWalletRoom } from "@/store/wallet-nav";
+import { isIslandRoom, WALLET_SCREENS } from "@/data/wallet-screens";
 import { cardDragY } from "@/store/wallet-gesture";
+import { useWalletNav, useWalletRoom } from "@/store/wallet-nav";
 import { colors } from "@/theme/colors";
 import { View } from "react-native";
 import Animated, {
-  interpolateColor,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue,
+    interpolateColor,
+    useAnimatedScrollHandler,
+    useAnimatedStyle,
+    useSharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -38,6 +39,10 @@ export function WalletNavigator() {
   // vanishing on state change.
   const room = useWalletRoom();
   const roomVisible = current !== "HOME";
+  // Island rooms are drawn by the Dynamic Island itself (they ARE the `islande
+  // model`), so they must not also be layered here — that would give them a
+  // second, disconnected transition.
+  const surfaceRoom = room && !isIslandRoom(room) ? room : null;
 
   const islandTop = Math.max(insets.top - ISLAND_HEIGHT / 2, 6);
   const contentTopGap = islandTop + ISLAND_HEIGHT + 24;
@@ -52,14 +57,15 @@ export function WalletNavigator() {
     );
   });
 
-  // Each room has its own colour family; the shell behind the ZENO Card is the
-  // light green one. It follows the drag rather than the room state so the
-  // shell and the island morph together, frame for frame.
+  // Each room has its own colour family. For island rooms the shell follows the
+  // drag rather than the room state, so the shell and the island morph together,
+  // frame for frame.
+  const shellColor = WALLET_SCREENS[room ?? "HOME"].shellColor;
   const shellStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
       cardDragY.value,
       [0, 300],
-      [colors.zenoBackground, colors.zenoCardShell]
+      [colors.zenoBackground, shellColor]
     ),
   }));
 
@@ -71,14 +77,14 @@ export function WalletNavigator() {
         contentTopGap={contentTopGap}
       />
 
-      {room && room !== "CARD" && (
+      {surfaceRoom && (
         <WalletSurface
-          key={room}
-          screen={room}
+          key={surfaceRoom}
+          screen={surfaceRoom}
           visible={roomVisible}
           onClosed={clearClosing}
         >
-          <RoomContent screen={room} contentTopGap={contentTopGap} />
+          <RoomContent screen={surfaceRoom} contentTopGap={contentTopGap} />
         </WalletSurface>
       )}
 

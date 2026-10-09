@@ -30,34 +30,52 @@ export function useSocialSignIn() {
       setError(null);
 
       try {
-        const { createdSessionId, setActive, signUp } = await startSSOFlow({
+        const result = await startSSOFlow({
           strategy,
-          redirectUrl: Linking.createURL("/add-phone-number"),
+          redirectUrl: Linking.createURL("/"),
         });
 
-        if (createdSessionId && setActive) {
-          await setActive({ session: createdSessionId });
+        // Helpful debug: log the full startSSOFlow return so we can inspect
+        // why callbacks sometimes fail in production (redirect URI, missing
+        // fields, etc.). Remove these logs after we resolve the issue.
+        console.warn("[clerk] startSSOFlow result", result);
 
-          if (signUp) {
-            // New account: Google OAuth doesn't collect phone number, so redirect
-            // to Add Your Phone Number screen first (which also captures country
-            // via the dial code picker). After the phone is added, the flow
-            // continues to Verify Phone Number.
-            setSignUpMethod("google");
-            router.replace("/add-phone-number");
-          } else {
-            // Existing account: already onboarded. Still require the PIN unlock
-            // before the wallet, exactly like email/password login.
-            router.replace("/verify-pin");
-          }
+        const { createdSessionId, setActive, signIn, signUp } = result;
+
+        if (!createdSessionId || !setActive) {
+          console.warn("[clerk] startSSOFlow returned no session", result);
+          setError("Additional information is required to finish signing in.");
+          setPendingProvider(null);
           return;
         }
 
-        // No session means Clerk needs more steps (e.g. missing required fields).
-        setError("Additional information is required to finish signing in.");
-      } catch {
+        console.warn("[clerk] OAuth: calling setActive with session", {
+          createdSessionId,
+          hasSignIn: !!signIn,
+          hasSignUp: !!signUp,
+        });
+
+        // Activate the session, then route based on account status.
+        // We need to ensure setActive completes before routing to avoid
+        // race conditions where Clerk state isn't synchronized yet.
+        await setActive({ session: createdSessionId });
+
+        // After setActive, the session should be active. Decide where to route
+        // based on whether this is an existing account (signIn complete) or new.
+        if (signIn && signIn.status === "complete") {
+          console.warn("[clerk] OAuth: existing account, routing to /verify-pin");
+          router.replace("/verify-pin");
+        } else if (!signUp) {
+          console.warn("[clerk] OAuth: no signUp object, routing to /verify-pin");
+          router.replace("/verify-pin");
+        } else {
+          console.warn("[clerk] OAuth: new account, routing to /add-phone-number");
+          setSignUpMethod("google");
+          router.replace("/add-phone-number");
+        }
+      } catch (err) {
+        console.warn("[clerk] OAuth error", err);
         setError("Sign-in failed. Please try again.");
-      } finally {
         setPendingProvider(null);
       }
     },

@@ -24,12 +24,26 @@ export type WalletScreen =
  */
 export type SurfaceOrigin = "above" | "below";
 
+/**
+ * Which mechanism animates the room in.
+ *
+ * `island` = the room IS the `islande model`: the Dynamic Island scales it up
+ * from its own top-left corner and the two islands siphon into each other.
+ * `surface` = the room is a plain layer above Home that travels vertically.
+ *
+ * Prefer `island`. A room on `surface` animates independently of the capsule,
+ * which is what made earlier transitions read as disconnected screen pushes;
+ * it stays only for rooms whose UI has not been built against the morph yet.
+ */
+export type SurfaceHost = "island" | "surface";
+
 export type WalletScreenConfig = {
   /** Dynamic Island title while this room is open. */
   title: string;
   /** App Shell background — the light surface behind the hero block. */
   shellColor: string;
   origin: SurfaceOrigin;
+  host: SurfaceHost;
 };
 
 export const WALLET_SCREENS: Record<WalletScreen, WalletScreenConfig> = {
@@ -37,35 +51,52 @@ export const WALLET_SCREENS: Record<WalletScreen, WalletScreenConfig> = {
     title: "Zeno Card",
     shellColor: colors.zenoBackground,
     origin: "below",
+    host: "surface",
   },
   CARD: {
     title: "Zeno Card",
-    shellColor: colors.zenoIntro,
+    shellColor: colors.zenoCardShell,
     origin: "above",
+    host: "island",
   },
   SEND: {
     title: "Send Money",
     shellColor: colors.zenoSky,
-    origin: "below",
+    origin: "above",
+    host: "island",
   },
   GETPAID: {
     title: "Get Paid",
+    /**
+     * App Shell behind the Get Paid hero — light sky blue, matching the design's
+     * outer background (AGENTS.md: "Send / Get Paid → light blue shell").
+     * The hero block itself is dark (the island liquid shape paints that).
+     */
     shellColor: colors.zenoSky,
-    origin: "below",
+    origin: "above",
+    host: "island",
   },
   ADD: {
     title: "Add Money",
     shellColor: colors.zenoSky,
     origin: "below",
+    host: "surface",
   },
   WITHDRAW: {
-    title: "Withdraw",
+    title: "Withdraw Money",
     shellColor: colors.zenoSky,
-    origin: "below",
+    origin: "above",
+    host: "island",
   },
   TRANSACTIONS: {
     title: "Transactions",
     shellColor: colors.zenoSky,
     origin: "below",
+    host: "surface",
   },
 };
+
+/** True when the room is drawn and animated by the Dynamic Island itself. */
+export const isIslandRoom = (screen: WalletScreen) =>
+  WALLET_SCREENS[screen].host === "island";
+

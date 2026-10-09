@@ -1,0 +1,54 @@
+Read AGENTS.md first and follow it strictly.
+
+Implement the "Get Paid" surface exactly as shown in the attached design. 
+This is a WalletSurface room (navigateTo("GETPAID")), sharing the same 
+island-scale animation contract already used for ZENO Card and Send Money — 
+no separate transition logic for this room.
+
+Layout (top to bottom): header with "Get" (grey/dimmed) + "Paid" (white, 
+bold) title and a close "✕" button aligned right, subtext "Choose Method" 
+(light grey), three option rows, each with a circular icon on the left and 
+a label to the right (no chevron shown in this design, unlike Send Money):
+1. "Create Payment Link" — lime green circular icon with a link/chain icon.
+2. "Request Money" — lime green circular icon with a wallet/card icon.
+3. "QR Code" — pale mint circular icon with an upload/transfer icon.
+
+Note: there's a large empty gap between the header and "Choose Method" in 
+the reference — this appears to be an artifact of the design export (a 
+faded "QR Code" label is visible bleeding through at the very top, outside 
+the card bounds) rather than intentional blank space. Use a sensible, 
+consistent vertical rhythm here matching the spacing patterns already used 
+in ZENO Card and Send Money, rather than reproducing the large empty gap 
+literally — flag this to me if you want to confirm before adjusting.
+
+Color consistency (must reuse existing tokens, no new hex values):
+- The App Shell background reuses the existing `colors.zenoSky` value 
+  already configured in `wallet-screens.ts` for the GETPAID room.
+- The Hero Block (dark background) uses ZENO's existing dark tones from 
+  `theme/colors.ts` (`colors.zenoDark` / `colors.zenoIntro`), consistent 
+  with the "Send / Get Paid → Black/dark hero" color family from AGENTS.md.
+- The three option icons (lime green for Create Payment Link and Request 
+  Money, pale mint for QR Code) map to existing brand tokens — reuse them, 
+  flag if a shade is missing.
+
+Animation contract (must be respected — same as ZENO Card and Send Money):
+- This layout is authored at full-screen size — never build a "compact" 
+  intermediate version.
+- Content is anchored top-left; the island scales this surface up from its 
+  own top-left corner.
+- Only the top ~80px (the "Get Paid" header) needs to stay legible 
+  throughout the morph — everything below is revealed/clipped naturally.
+
+Behavior:
+- Tapping "✕" or swiping up closes this room and returns to Wallet Home.
+- "Create Payment Link" navigates to: Amount → Description → Expiration → 
+  Review → Create → Payment Link Details (zeno.com/pay/xxxxx) with actions 
+  Copy Link, Share Link, Disable Link (per AGENTS.md Get Paid flow).
+- "Request Money" navigates to: Select ZENO user → Enter amount → Add 
+  message → Review → Send request → Request sent.
+- "QR Code" navigates to the personal ZENO QR code screen (scannable code 
+  for others to pay this user).
+
+@prompt_material/A 1.1 GetPaid.png
+@prompt_material/request moeny.png (us for request money)
+@prompt_material/request QR.png (us for qr code)

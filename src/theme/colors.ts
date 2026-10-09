@@ -10,6 +10,10 @@ export const colors = {
   zenoGreenDeep: "#7DBB2E",
   /** App Shell behind the ZENO Card hero — the room's light green family. */
   zenoCardShell: "#E4F4C6",
+  /** Pale mint — neutral icon circles on dark hero surfaces. */
+  zenoMint: "#E8F5E0",
+  /** The same mint, deep enough to read as a filled circle on a light pill. */
+  zenoMintSoft: "#A9CFC0",
   zenoDark: "#0A1712",
   zenoIntro: "#1B2812",
   zenoBackground: "#F4FAFF",

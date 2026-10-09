@@ -51,6 +51,7 @@ export function useStartSignUp() {
           unsafeMetadata: { phoneNumber: e164, phoneVerified: false },
         });
       } catch (cause) {
+        console.warn("[clerk] signUp.create failed", cause);
         setIsSubmitting(false);
         setError(
           getClerkErrorMessage(

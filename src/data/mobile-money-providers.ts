@@ -7,12 +7,11 @@ import type {
 /**
  * Mobile Money providers for the initial markets.
  *
- * - Benin: MTN Mobile Money, Moov Money
+ * - Benin: MTN Mobile Money, Moov Money, Celtiis
  * - Côte d'Ivoire: Orange Money, MTN Mobile Money, Moov Money
  *
- * `logoKey` is a placeholder key into a future `images.providers` map — brand
- * logos are added to `constants/images.ts` once available, so nothing ships a
- * broken `require()` today.
+ * `logoKey` points into `images.providers`. Orange has no bundled brand mark
+ * yet, so it is omitted rather than pointing at a missing asset.
  *
  * To add a provider or extend one to a new country: add/adjust an entry here
  * (and its id in `types/content.ts`). No consumer code needs to change.
@@ -20,7 +19,7 @@ import type {
 export const mobileMoneyProviders: MobileMoneyProvider[] = [
   {
     id: "mtn",
-    name: "MTN Mobile Money",
+    name: "MTN Money",
     logoKey: "mtn",
     availableIn: ["benin", "cote-divoire"],
   },
@@ -31,9 +30,14 @@ export const mobileMoneyProviders: MobileMoneyProvider[] = [
     availableIn: ["benin", "cote-divoire"],
   },
   {
+    id: "celtiis",
+    name: "Celtiis",
+    logoKey: "celtiis",
+    availableIn: ["benin"],
+  },
+  {
     id: "orange",
     name: "Orange Money",
-    logoKey: "orange",
     availableIn: ["cote-divoire"],
   },
 ];

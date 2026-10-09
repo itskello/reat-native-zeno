@@ -1,4 +1,4 @@
-import { PinPad, PIN_LENGTH } from "@/components/auth/PinPad";
+import { PIN_LENGTH, PinPad } from "@/components/auth/PinPad";
 import { images } from "@/constants/images";
 import { useSecurityStore } from "@/store/security-store";
 import { useAuth, useUser } from "@clerk/clerk-expo";
@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
  * PIN unlock screen.
  *
  * Shown right after a successful login (email/password OR Google) as a final
- * gate before the wallet. The user must enter the 4-digit PIN they created
+ * gate before the wallet. The user must enter the 8-digit PIN they created
  * during onboarding. This is a local unlock check against the salted+hashed PIN
  * in SecureStore — the Clerk session is already active; the backend stays the
  * source of truth for every financial action.
@@ -133,7 +133,7 @@ export default function VerifyPinScreen() {
           className="mt-4 font-medium text-[19px] leading-[26px] text-zeno-text-subtitle"
           allowFontScaling={false}
         >
-          Enter your 4-digit PIN to unlock ZENO.
+          Enter your 8-digit PIN to unlock ZENO.
         </Text>
 
         {error ? (

@@ -1,23 +1,23 @@
 import {
-  ISLAND_CANVAS_WIDTH,
-  modelBox,
-  pillBox,
+    ISLAND_CANVAS_WIDTH,
+    modelBox,
+    pillBox,
 } from "@/data/island-geometry";
 import { colors } from "@/theme/colors";
 import { StyleSheet, View } from "react-native";
-import Svg, {
-  Defs,
-  FeColorMatrix,
-  FeGaussianBlur,
-  Filter,
-  G,
-  Rect,
-} from "react-native-svg";
 import type { SharedValue } from "react-native-reanimated";
 import Animated, {
-  useAnimatedProps,
-  useAnimatedStyle,
+    useAnimatedProps,
+    useAnimatedStyle,
 } from "react-native-reanimated";
+import Svg, {
+    Defs,
+    FeColorMatrix,
+    FeGaussianBlur,
+    Filter,
+    G,
+    Rect,
+} from "react-native-svg";
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 

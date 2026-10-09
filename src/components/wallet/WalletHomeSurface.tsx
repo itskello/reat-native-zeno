@@ -4,10 +4,11 @@ import { WalletHeroCard } from "@/components/wallet/WalletHeroCard";
 import { images } from "@/constants/images";
 import { gesture, springs } from "@/constants/motion";
 import { formatAmount } from "@/data/currencies";
+import { isIslandRoom } from "@/data/wallet-screens";
 import { useAppStore } from "@/store/app-store";
 import { useTransactionStore } from "@/store/transaction-store";
-import { useWalletNav } from "@/store/wallet-nav";
 import { cardDragY } from "@/store/wallet-gesture";
+import { useWalletNav } from "@/store/wallet-nav";
 import { useWalletStore } from "@/store/wallet-store";
 import { useUser } from "@clerk/clerk-expo";
 import { Image } from "expo-image";
@@ -15,13 +16,13 @@ import { useEffect } from "react";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  interpolate,
-  runOnJS,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  type SharedValue,
+    interpolate,
+    runOnJS,
+    useAnimatedScrollHandler,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+    type SharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -74,12 +75,11 @@ export function WalletHomeSurface({
   /** Set on gesture begin: whether this pan is allowed to open the card. */
   const canOpen = useSharedValue(false);
 
+  // Island rooms (ZENO Card, Send Money) are the `islande model`, so opening
+  // one means driving the morph — whether it was reached by the pull-down
+  // gesture or by tapping an action on the hero.
   useEffect(() => {
-    if (current === "HOME") {
-      cardDragY.value = withSpring(0, springs.liquid);
-    } else if (current === "CARD") {
-      cardDragY.value = withSpring(300, springs.liquid);
-    }
+    cardDragY.value = withSpring(isIslandRoom(current) ? 300 : 0, springs.liquid);
   }, [current]);
 
   // Pull-down gesture from Home opens ZENO Card. It is only allowed while the

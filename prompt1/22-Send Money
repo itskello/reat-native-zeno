@@ -1,0 +1,67 @@
+Read AGENTS.md first and follow it strictly.
+
+Implement the "Send Money" surface exactly as shown in the attached design. 
+This is a WalletSurface room (navigateTo("SEND")), sharing the same island-scale 
+animation contract already used for ZENO Card — do not build a separate 
+transition for this room (this fixes the disconnected-transition bug we 
+identified earlier).
+
+Layout (top to bottom): header with "Send" (grey/dimmed) + "Money" (white, 
+bold) title and a close "✕" button aligned right, subtext "Choose How You 
+Want To Send Money" (light grey), three option rows:
+1. "Zeno User" with a "Free" pill badge (lime green), blue circular icon 
+   with the ZENO wordmark, subtext "Instant Transfer To Another ZENO 
+   Account", chevron on the right.
+2. "Mobile Money", lime-green circular icon with a wallet/card icon, 
+   subtext "Send To Any Mobile Money Number", chevron on the right.
+3. "Withdraw Money", pale mint circular icon with an upload/transfer icon, 
+   subtext "Transfer Your Balance To Mobile Money", chevron on the right.
+
+Below that: "Recent Recipients" section header ("Recent" bold white, 
+"Recipients" regular grey), a horizontal row of recent recipient avatars 
+with names beneath (circular photos), and at the bottom a light mint/blue 
+"Add New Recipient" pill button with a person+plus icon and a chevron.
+
+Color consistency (must reuse existing tokens, no new hex values):
+- The App Shell background (behind this surface) reuses the existing 
+  `colors.zenoSky` value already configured in `wallet-screens.ts` for the 
+  SEND room — do not change it.
+- The Hero Block (dark background containing all the content above) uses 
+  ZENO's existing dark tones from `theme/colors.ts` (`colors.zenoDark` / 
+  `colors.zenoIntro`), consistent with AGENTS.md's "Send / Get Paid → 
+  Black/dark hero" color family — reuse existing tokens.
+- The three option icons (blue for Zeno User, lime green for Mobile Money, 
+  pale mint for Withdraw Money) should map to existing brand tokens 
+  (`colors.zenoBlue`, `colors.zenoGreen`, etc.) — flag if a shade doesn't 
+  exist yet and confirm before adding a new token.
+
+Animation contract (must be respected — same as ZENO Card):
+- This layout is authored at full-screen size — never build a "compact" 
+  intermediate version.
+- Content is anchored top-left; the island scales this surface up from its 
+  own top-left corner.
+- Only the top ~80px (the "Send Money" header) needs to stay legible 
+  throughout the morph — everything below is revealed/clipped naturally by 
+  the existing scale + clip mechanism.
+
+Behavior:
+- Tapping "✕" or swiping up closes this room and returns to Wallet Home 
+  (existing WalletSurface swipe-up-to-close gesture, no change needed there).
+- "Zeno User" navigates to the ZENO user search/recipient flow: Search 
+  recipient → Recipient details → Enter amount → Review → Confirm → PIN → 
+  Processing → Success → Transaction details (per AGENTS.md Send Money flow).
+- "Mobile Money" navigates to: Select operator → Phone number → Amount → 
+  Review → Confirm → Mobile Money authorization → Processing → Success/Failed.
+- "Withdraw Money" navigates to the existing Withdraw Money room/flow.
+- Tapping a recent recipient avatar pre-fills the ZENO User recipient flow 
+  with that person, skipping the search step.
+- "Add New Recipient" opens a flow to search/add a new ZENO user as a saved 
+  recipient.
+- Recent recipients data: use a placeholder list for now (following the 
+  same placeholder pattern as `wallet-store.ts` / `transaction-store.ts`), 
+  with a `loadRecentRecipients()` TODO for the real backend fetch later.
+
+@prompt_material/A 1.1 Send Money.png ( this is the design of the screen)
+@prompt_material/Logo white.png (us for zeno user)
+@prompt_material/Withdraw.png (us for widraw money)
+@prompt_material/request moeny.png ( us for mobile money)

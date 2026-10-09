@@ -45,16 +45,28 @@ export default function VerifyPhoneScreen() {
       }
     }
 
-    // Skip email verification when the email is already proven. This is the
-    // robust signal — the in-memory signUpMethod flag is lost across the OAuth
-    // browser round-trip, but the Clerk session survives it. A Google sign-up
-    // returns with an active session whose email Clerk already verified; a form
-    // sign-up has no session yet and must verify its email.
+    // Skip email verification when the Clerk session is already active or
+    // when the flow originated from Google. This prevents unnecessary email
+    // verification screens for Google accounts, especially across the OAuth
+    // browser round-trip.
     const emailAlreadyVerified =
       isSignedIn &&
       user?.primaryEmailAddress?.verification?.status === "verified";
 
-    if (emailAlreadyVerified || signUpMethod === "google") {
+    const skipEmailVerification =
+      emailAlreadyVerified ||
+      signUpMethod === "google" ||
+      (isSignedIn && !!user?.primaryEmailAddress?.emailAddress);
+
+    console.warn("[clerk] verify-phone skipEmailVerification", {
+      emailAlreadyVerified,
+      signUpMethod,
+      isSignedIn,
+      email: user?.primaryEmailAddress?.emailAddress,
+      skipEmailVerification,
+    });
+
+    if (skipEmailVerification) {
       router.replace("/create-pin");
     } else {
       router.replace("/verify-email");

@@ -11,6 +11,8 @@ module.exports = {
           green: "#C7FF4A",
           "green-deep": "#7DBB2E",
           "card-shell": "#E4F4C6",
+          mint: "#E8F5E0",
+          "mint-soft": "#A9CFC0",
           dark: "#0A1712",
           intro: "#1B2812",
           background: "#F4FAFF",

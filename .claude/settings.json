@@ -2,7 +2,22 @@
   "permissions": {
     "allow": [
       "Bash(npx expo *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"metro=%{http_code}\\\\n\" http://localhost:8081/status)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8081/status)",
+      "Bash(git checkout *)",
+      "Bash(grep -E \"^E:\\\\\\\\\\\\\\\\\")",
+      "Bash(git log *)",
+      "Bash(npx expo-doctor *)",
+      "Bash(sed 's/:.*//')",
+      "Bash(node -e ' *)",
+      "Bash(grep -oE \"\\(E:.*|[a-z-]+/[a-z-]+|Error:.*\\)$\")",
+      "Bash(grep -E \"^[a-z-]+/[a-z-]+$\")",
+      "Bash(grep -oE \"ZENO\\\\\\\\\\\\\\\\src\\\\\\\\\\\\\\\\.*\")",
+      "Bash(curl -s -o /tmp/bundle.js -w \"HTTP %{http_code} — %{size_download} bytes\\\\n\" \"http://localhost:8081/src/app/_layout.bundle?platform=ios&dev=true&minify=false\" --max-time 300)",
+      "Bash(curl -s -o /tmp/app.js -w \"HTTP %{http_code} — %{size_download} bytes\\\\n\" \"http://localhost:8081/index.bundle?platform=ios&dev=true&minify=false\" --max-time 300)",
+      "Bash(curl -s -o /tmp/app.js -w \"HTTP %{http_code} — %{size_download} bytes\\\\n\" \"http://localhost:8081/node_modules/expo-router/entry.bundle?platform=ios&dev=true&minify=false\" --max-time 300)",
+      "Bash(curl -s -o /tmp/send.js -w \"HTTP %{http_code} — %{size_download} bytes\\\\n\" \"http://localhost:8081/src/components/wallet/SendMoneySurface.bundle?platform=ios&dev=true&minify=false\" --max-time 300)"
     ]
   },
   "enabledPlugins": {

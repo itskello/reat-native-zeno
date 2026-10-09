@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Animated, Pressable, Text, View } from "react-native";
 
-export const PIN_LENGTH = 4;
+export const PIN_LENGTH = 8;
 
 // Bottom row leaves the first slot empty, matching the design: [ , 0, < ].
 const KEYPAD_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"] as const;
