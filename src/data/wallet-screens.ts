@@ -46,9 +46,9 @@ export type WalletScreenConfig = {
   host: SurfaceHost;
   /**
    * Whether the Dynamic Island capsule is visible on this screen.
-   * True only for HOME and CARD — the two screens where it has a navigation
-   * role (CARD is attached to it; HOME shows it as a hint to swipe down).
-   * On all other rooms (Transactions, Send, Add, Withdraw) it is hidden.
+   * Set to false only for TRANSACTIONS — the one wallet room where the island
+   * has no navigation role and would float awkwardly over the content.
+   * All other rooms (HOME, CARD, SEND, GETPAID, ADD, WITHDRAW) show the island.
    */
   showIsland: boolean;
 };
@@ -73,28 +73,28 @@ export const WALLET_SCREENS: Record<WalletScreen, WalletScreenConfig> = {
     shellColor: colors.zenoSky,
     origin: "above",
     host: "island",
-    showIsland: false,
+    showIsland: true,
   },
   GETPAID: {
     title: "Get Paid",
     shellColor: colors.zenoSky,
     origin: "above",
     host: "island",
-    showIsland: false,
+    showIsland: true,
   },
   ADD: {
     title: "Add Money",
     shellColor: colors.zenoSky,
     origin: "below",
     host: "surface",
-    showIsland: false,
+    showIsland: true,
   },
   WITHDRAW: {
     title: "Withdraw Money",
     shellColor: colors.zenoSky,
     origin: "above",
     host: "island",
-    showIsland: false,
+    showIsland: true,
   },
   TRANSACTIONS: {
     title: "Transactions",
