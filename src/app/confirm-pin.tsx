@@ -109,7 +109,7 @@ export default function ConfirmPinScreen() {
           className="mt-4 font-medium text-[19px] leading-[26px] text-zeno-text-subtitle"
           allowFontScaling={false}
         >
-          Re-enter your 8-digit PIN to confirm.
+          Re-enter your {PIN_LENGTH}-digit PIN to confirm.
         </Text>
 
         {error ? (

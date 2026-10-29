@@ -7,6 +7,7 @@ import { colors } from "@/theme/colors";
 import { StyleSheet, View } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import Animated, {
+    interpolate,
     useAnimatedProps,
     useAnimatedStyle,
 } from "react-native-reanimated";
@@ -24,6 +25,8 @@ const AnimatedRect = Animated.createAnimatedComponent(Rect);
 type IslandLiquidShapeProps = {
   /** 1 = ZENO Card open, 0 = closed. Driven by the wallet drag gesture. */
   openness: SharedValue<number>;
+  /** Scroll-driven collapse (0 = rest, 1 = fully collapsed). */
+  collapse?: SharedValue<number>;
   width: number;
   height: number;
 };
@@ -91,6 +94,7 @@ const NECK_BAND = 90;
  */
 export function IslandLiquidShape({
   openness,
+  collapse,
   width,
   height,
 }: IslandLiquidShapeProps) {
@@ -103,10 +107,17 @@ export function IslandLiquidShape({
 
   const pillStyle = useAnimatedStyle(() => {
     const b = pillBox(openness.value, scale);
+    const c = collapse ? collapse.value : 0;
+    const cardClosed = 1 - openness.value;
+
+    // Widen the pill on scroll collapse, matching DynamicIsland content layer.
+    const w = interpolate(c, [0, 0.6], [b.w, width - 24], "clamp") * cardClosed + b.w * openness.value;
+    const x = interpolate(c, [0, 0.6], [b.x, 12], "clamp") * cardClosed + b.x * openness.value;
+
     return {
-      left: b.x,
+      left: x,
       top: b.y,
-      width: b.w,
+      width: w,
       height: b.h,
       borderRadius: b.r,
     };
@@ -127,7 +138,13 @@ export function IslandLiquidShape({
   // x/y/width/height/rx keeps the morph on the UI thread here too.
   const pillProps = useAnimatedProps(() => {
     const b = pillBox(openness.value, scale);
-    return { x: b.x, y: b.y, width: b.w, height: b.h, rx: b.r, ry: b.r };
+    const c = collapse ? collapse.value : 0;
+    const cardClosed = 1 - openness.value;
+
+    const w = interpolate(c, [0, 0.6], [b.w, width - 24], "clamp") * cardClosed + b.w * openness.value;
+    const x = interpolate(c, [0, 0.6], [b.x, 12], "clamp") * cardClosed + b.x * openness.value;
+
+    return { x, y: b.y, width: w, height: b.h, rx: b.r, ry: b.r };
   });
 
   const modelProps = useAnimatedProps(() => {

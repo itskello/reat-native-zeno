@@ -81,22 +81,17 @@ export function WalletHeroCard({
         </Pressable>
 
         <Pressable
-          className="ml-2 h-[56px] flex-1 flex-row items-center justify-center rounded-full bg-white/15"
+          className="ml-2 h-[56px] w-[56px] items-center justify-center rounded-full bg-white/15"
           onPress={onWithdraw}
+          accessibilityLabel="Cash out"
           style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
         >
           <Image
             source={images.withdraw}
-            style={{ width: 22, height: 22 }}
+            style={{ width: 35, height: 35 }}
             contentFit="contain"
             tintColor="#FFFFFF"
           />
-          <Text
-            allowFontScaling={false}
-            className="ml-2 font-semibold text-[16px] text-white"
-          >
-            Cash Out
-          </Text>
         </Pressable>
 
         <Pressable
@@ -106,7 +101,7 @@ export function WalletHeroCard({
         >
           <Image
             source={images.sendMoney}
-            style={{ width: 22, height: 22 }}
+            style={{ width: 25, height: 25 }}
             contentFit="contain"
             tintColor="#FFFFFF"
           />
@@ -128,7 +123,7 @@ export function WalletHeroCard({
         >
           <Image
             source={images.linkIcon}
-            style={{ width: 24, height: 24 }}
+            style={{ width: 35, height: 35 }}
             contentFit="contain"
           />
           <Text

@@ -1,5 +1,7 @@
+import { FloatingGlassNavBar } from "@/components/ui/FloatingGlassNavBar";
 import { DynamicIsland } from "@/components/wallet/DynamicIsland";
 import { FeatureStub } from "@/components/wallet/FeatureStub";
+import { TransactionsSurface } from "@/components/wallet/TransactionsSurface";
 import { WalletHomeSurface } from "@/components/wallet/WalletHomeSurface";
 import { WalletSurface } from "@/components/wallet/WalletSurface";
 import type { WalletScreen } from "@/data/wallet-screens";
@@ -13,6 +15,7 @@ import Animated, {
     useAnimatedScrollHandler,
     useAnimatedStyle,
     useSharedValue,
+    withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -34,15 +37,25 @@ export function WalletNavigator() {
   const current = useWalletNav((s) => s.current);
   const clearClosing = useWalletNav((s) => s.clearClosing);
 
-  // The room stays mounted while it plays its exit animation (the store keeps
-  // it in `closing`), so the collapse is visible instead of the surface
-  // vanishing on state change.
   const room = useWalletRoom();
   const roomVisible = current !== "HOME";
-  // Island rooms are drawn by the Dynamic Island itself (they ARE the `islande
-  // model`), so they must not also be layered here — that would give them a
-  // second, disconnected transition.
   const surfaceRoom = room && !isIslandRoom(room) ? room : null;
+
+  // Whether the Dynamic Island should be visible on the current screen
+  const showIsland = WALLET_SCREENS[current].showIsland;
+  const islandOpacity = useSharedValue(showIsland ? 1 : 0);
+
+  // Animate island opacity when current screen changes
+  const prevCurrent = useSharedValue(current);
+  if (prevCurrent.value !== current) {
+    prevCurrent.value = current;
+    islandOpacity.value = withTiming(showIsland ? 1 : 0, { duration: 150 });
+  }
+
+  const islandStyle = useAnimatedStyle(() => ({
+    opacity: islandOpacity.value,
+    pointerEvents: islandOpacity.value < 0.1 ? "none" : "box-none",
+  }));
 
   const islandTop = Math.max(insets.top - ISLAND_HEIGHT / 2, 6);
   const contentTopGap = islandTop + ISLAND_HEIGHT + 24;
@@ -75,6 +88,7 @@ export function WalletNavigator() {
         onScroll={onScroll}
         scrollY={scrollY}
         contentTopGap={contentTopGap}
+        collapse={collapse}
       />
 
       {surfaceRoom && (
@@ -88,25 +102,30 @@ export function WalletNavigator() {
         </WalletSurface>
       )}
 
-      {/* Pinned Dynamic Island — above every room, never remounted. Its own
-          geometry is absolute (from the Lottie canvas), so this layer covers
-          the whole screen and does no positioning of its own. */}
-      <View
+      {/* Pinned Dynamic Island — fades out on screens where it has no role. */}
+      <Animated.View
         pointerEvents="box-none"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 10,
-        }}
+        style={[
+          {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 10,
+          },
+          islandStyle,
+        ]}
       >
         <DynamicIsland collapse={collapse} liftDistance={ISLAND_HEIGHT / 2} />
-      </View>
+      </Animated.View>
+
+      {/* Floating Liquid Glass Navigation Bar (3 Main Tabs) */}
+      {current !== "CARD" && <FloatingGlassNavBar />}
     </Animated.View>
   );
 }
+
 
 /**
  * Room content. Each feature replaces its stub here as it gets built — the
@@ -123,6 +142,10 @@ function RoomContent({
   screen: Exclude<WalletScreen, "HOME">;
   contentTopGap: number;
 }) {
+  if (screen === "TRANSACTIONS") {
+    return <TransactionsSurface contentTopGap={contentTopGap} />;
+  }
+
   const subtitles: Record<Exclude<WalletScreen, "HOME">, string> = {
     CARD: "Your ZENO virtual card, drawn from your wallet balance.",
     SEND: "Send to a ZENO user or Mobile Money account.",

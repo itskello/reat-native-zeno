@@ -51,7 +51,7 @@ export default function CreatePinScreen() {
           className="mt-4 font-medium text-[19px] leading-[26px] text-zeno-text-subtitle"
           allowFontScaling={false}
         >
-          Create an 8-digit PIN to secure your account.
+          Create a {PIN_LENGTH}-digit PIN to secure your account.
         </Text>
 
         <View className="mt-[56px] flex-1">

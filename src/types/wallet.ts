@@ -20,17 +20,34 @@ export type TransactionStatus = "pending" | "completed" | "failed";
 /** Money coming into the wallet vs leaving it. */
 export type TransactionDirection = "in" | "out";
 
+export type TransactionCategory = "received" | "sent" | "card";
+
 export type Transaction = {
   id: string;
   typeId: TransactionTypeId;
+  category?: TransactionCategory;
   /** Primary label, e.g. a counterparty or merchant name. */
   title: string;
-  /** Secondary line, e.g. "Monthly subscription". */
+  /** Secondary line, e.g. "Monthly subscription", "Recharge de la carte". */
   description: string;
   /** Absolute amount in `Wallet.currency` units. Sign is derived from `direction`. */
   amount: number;
+  currency?: CurrencyCode;
   direction: TransactionDirection;
   status: TransactionStatus;
   /** ISO 8601 timestamp. */
   createdAt: string;
+  /** Pre-formatted date string for grouping, e.g. "15 sept. 2026" */
+  dateLabel?: string;
+  /** Pre-formatted full date & time string, e.g. "18 sept. 2026 à 16:28" */
+  timeLabel?: string;
+  shortId?: string;
+  recipientOrSender?: string;
+  fee?: number;
+  totalAmount?: number;
+  reference?: string;
+  paymentMethod?: string;
+  note?: string;
+  sentAmountXof?: number;
+  exchangeRate?: string;
 };

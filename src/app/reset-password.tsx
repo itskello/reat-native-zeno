@@ -1,4 +1,4 @@
-import { CheckIcon } from "@/components/ui/CheckIcon";
+﻿import { CheckIcon } from "@/components/ui/CheckIcon";
 import { EyeIcon } from "@/components/ui/EyeIcon";
 import { LockIcon } from "@/components/ui/LockIcon";
 import { images } from "@/constants/images";
@@ -225,3 +225,4 @@ export default function ResetPasswordScreen() {
     </KeyboardAvoidingView>
   );
 }
+

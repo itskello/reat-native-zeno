@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
+import { createHmac, randomInt, timingSafeEqual } from "crypto";
 import { requireEnv } from "@/lib/server/env";
 
 /**
@@ -24,7 +24,7 @@ function secret() {
 }
 
 function sign(payload: string) {
-  return createHmac("sha256", secret()).update(payload).digest("base64url");
+  return createHmac("sha256", secret()).update(payload).digest("base64");
 }
 
 function hashCode(phone: string, code: string) {
@@ -32,7 +32,7 @@ function hashCode(phone: string, code: string) {
   // replayed against another.
   return createHmac("sha256", secret())
     .update(`${phone}:${code}`)
-    .digest("base64url");
+    .digest("base64");
 }
 
 export type IssuedOtp = {
@@ -102,12 +102,12 @@ function nowSeconds() {
 }
 
 function toBase64Url(value: string) {
-  return Buffer.from(value, "utf8").toString("base64url");
+  return Buffer.from(value, "utf8").toString("base64");
 }
 
 function fromBase64Url(value: string) {
   try {
-    return Buffer.from(value, "base64url").toString("utf8");
+    return Buffer.from(value, "base64").toString("utf8");
   } catch {
     return null;
   }
@@ -122,5 +122,6 @@ function safeEquals(a: string, b: string) {
     return false;
   }
 
-  return timingSafeEqual(bufferA, bufferB);
+  return timingSafeEqual(new Uint8Array(bufferA), new Uint8Array(bufferB));
 }
+

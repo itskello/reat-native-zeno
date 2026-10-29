@@ -52,7 +52,7 @@ export type SupportedCountry = {
 /* -------------------------------------------------------------------------- */
 
 /** ISO 4217 currency codes ZENO supports. Add new codes here. */
-export type CurrencyCode = "XOF";
+export type CurrencyCode = "XOF" | "USD" | "EUR";
 
 export type Currency = {
   code: CurrencyCode;

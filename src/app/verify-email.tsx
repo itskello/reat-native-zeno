@@ -1,4 +1,4 @@
-import { images } from "@/constants/images";
+﻿import { images } from "@/constants/images";
 import { useEmailVerification } from "@/lib/use-email-verification";
 import { useOnboardingStore } from "@/store/onboarding-store";
 import { Image } from "expo-image";
@@ -92,3 +92,4 @@ export default function VerifyEmailScreen() {
     </View>
   );
 }
+

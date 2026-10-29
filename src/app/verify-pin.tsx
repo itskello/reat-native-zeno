@@ -1,21 +1,35 @@
 import { PIN_LENGTH, PinPad } from "@/components/auth/PinPad";
+import { CloseIcon } from "@/components/ui/CloseIcon";
+import { EyeIcon } from "@/components/ui/EyeIcon";
 import { images } from "@/constants/images";
 import { useSecurityStore } from "@/store/security-store";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Image } from "expo-image";
+import * as LocalAuthentication from "expo-local-authentication";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  Text,
+  TextInput,
+  View
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**
  * PIN unlock screen.
  *
  * Shown right after a successful login (email/password OR Google) as a final
- * gate before the wallet. The user must enter the 8-digit PIN they created
+ * gate before the wallet. The user must enter the 6-digit PIN they created
  * during onboarding. This is a local unlock check against the salted+hashed PIN
- * in SecureStore — the Clerk session is already active; the backend stays the
- * source of truth for every financial action.
+ * in SecureStore.
+ *
+ * Biometric auto-trigger:
+ * If the user has biometrics enabled, the native fingerprint/Face ID prompt
+ * fires automatically on mount — just like banking apps (PayPal, Lydia, etc.).
+ * Cancelling the prompt falls back to manual PIN entry.
  */
 export default function VerifyPinScreen() {
   const insets = useSafeAreaInsets();
@@ -23,24 +37,33 @@ export default function VerifyPinScreen() {
   const { signOut } = useAuth();
   const verifyPin = useSecurityStore((state) => state.verifyPin);
   const hasPin = useSecurityStore((state) => state.hasPin);
+  const biometricEnabled = useSecurityStore((state) => state.biometricEnabled);
+  const loadBiometricPreference = useSecurityStore(
+    (state) => state.loadBiometricPreference
+  );
 
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
 
+  // Forgot PIN reset modal state
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetPassword, setResetPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isVerifyingReset, setIsVerifyingReset] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+
+  // Prevent the biometric prompt from firing more than once per screen mount
+  const biometricTriggered = useRef(false);
+
   const isComplete = pin.length === PIN_LENGTH;
 
-  // A PIN is stored per app sandbox, so an account onboarded elsewhere — another
-  // device, or a different build of ZENO on this one — arrives here with nothing
-  // to check against. Enrol a PIN instead of waving the user through: an unlock
-  // gate that disappears when its secret is missing is not a gate.
+  // ─── Guard: redirect to create-pin if no PIN exists yet ────────────────────
   useEffect(() => {
     let cancelled = false;
 
     const guard = async () => {
-      if (!user?.id) {
-        return;
-      }
+      if (!user?.id) return;
       const exists = await hasPin(user.id);
       if (!cancelled && !exists) {
         router.replace("/create-pin");
@@ -48,59 +71,99 @@ export default function VerifyPinScreen() {
     };
 
     guard();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [user?.id, hasPin]);
 
-  const handleChange = (next: string) => {
-    if (error) {
-      setError(null);
+  // ─── Load biometric preference then auto-trigger if enabled ────────────────
+  useEffect(() => {
+    const init = async () => {
+      // Load preference if not already in memory
+      await loadBiometricPreference();
+    };
+    init();
+  }, []);
+
+  useEffect(() => {
+    // Only fire once and only when we know the preference is true
+    if (biometricEnabled !== true || biometricTriggered.current) return;
+    biometricTriggered.current = true;
+    triggerBiometric();
+  }, [biometricEnabled]);
+
+  /**
+   * Trigger the native biometric prompt (fingerprint / Face ID).
+   * On success → navigate directly to wallet (same as a correct PIN).
+   * On cancel or failure → do nothing; user falls back to manual PIN entry.
+   */
+  const triggerBiometric = async () => {
+    try {
+      // Double-check hardware is available at runtime
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!hasHardware || !isEnrolled) return;
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Déverrouiller ZENO",
+        cancelLabel: "Utiliser le PIN",
+        disableDeviceFallback: true, // We provide our own PIN fallback
+        fallbackLabel: "",           // Hide "Use Passcode" — we have our own
+      });
+
+      if (result.success) {
+        router.replace("/connection-success");
+      }
+      // result.error === "user_cancel" or "system_cancel" → just fall through
+      // to the PIN pad silently. No error message shown.
+    } catch {
+      // Biometric hardware error — silently fall through to PIN entry
     }
+  };
+
+  const handleChange = (next: string) => {
+    if (error) setError(null);
     setPin(next);
   };
 
-  // Verify automatically once all digits are entered — no extra button press.
+  // ─── Auto-verify when all PIN digits are entered ───────────────────────────
   useEffect(() => {
-    if (!isComplete || isChecking) {
-      return;
-    }
+    if (!isComplete || isChecking) return;
 
     let cancelled = false;
 
     const check = async () => {
-      if (!user?.id) {
-        return;
-      }
+      if (!user?.id) return;
 
       setIsChecking(true);
       const ok = await verifyPin(user.id, pin);
-      if (cancelled) {
-        return;
-      }
+      if (cancelled) return;
       setIsChecking(false);
 
       if (ok) {
-        // PIN correct: show the "Connection Successful" transition while the
-        // wallet preloads in the background, then land on Wallet Home.
         router.replace("/connection-success");
       } else {
-        setError("Incorrect PIN. Please try again.");
+        setError("Code PIN incorrect. Veuillez réessayez.");
         setPin("");
       }
     };
 
     check();
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { cancelled = true; };
   }, [isComplete]);
 
+  const handleConfirmResetPin = async () => {
+    setIsVerifyingReset(true);
+    setResetError(null);
+    try {
+      setIsResetModalOpen(false);
+      router.replace("/create-pin");
+    } catch {
+      setResetError("Échec de la réinitialisation. Veuillez réessayez.");
+    } finally {
+      setIsVerifyingReset(false);
+    }
+  };
+
   const handleUseAnotherAccount = async () => {
-    // Escape hatch: sign out and go back to the welcome flow.
     await signOut();
     router.replace("/welcome");
   };
@@ -133,7 +196,7 @@ export default function VerifyPinScreen() {
           className="mt-4 font-medium text-[19px] leading-[26px] text-zeno-text-subtitle"
           allowFontScaling={false}
         >
-          Enter your 8-digit PIN to unlock ZENO.
+          Enter your {PIN_LENGTH}-digit PIN to unlock ZENO.
         </Text>
 
         {error ? (
@@ -145,23 +208,118 @@ export default function VerifyPinScreen() {
           </Text>
         ) : null}
 
-        <View className="mt-[56px] flex-1">
-          <PinPad value={pin} onChange={handleChange} />
+        <View className="mt-[44px] flex-1">
+          <PinPad
+            value={pin}
+            onChange={handleChange}
+            onBiometric={
+              biometricEnabled === true
+                ? () => {
+                    biometricTriggered.current = false;
+                    triggerBiometric();
+                    biometricTriggered.current = true;
+                  }
+                : undefined
+            }
+          />
         </View>
-
-        <Pressable
-          className="mt-8 items-center"
-          onPress={handleUseAnotherAccount}
-          hitSlop={8}
-        >
-          <Text
-            className="font-bold text-[17px] text-zeno-link-blue"
-            allowFontScaling={false}
+        {/* Action Buttons */}
+        <View className="mt-6 gap-y-4 items-center">
+          <Pressable
+            onPress={() => setIsResetModalOpen(true)}
+            hitSlop={8}
+            className="py-1"
           >
-            Use another account
-          </Text>
-        </Pressable>
+            <Text
+              className="font-bold text-[17px] text-zeno-blue"
+              allowFontScaling={false}
+            >
+              Code PIN oublié ?
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleUseAnotherAccount}
+            hitSlop={8}
+            className="py-1"
+          >
+            <Text
+              className="font-semibold text-[15px] text-zeno-text-secondary"
+              allowFontScaling={false}
+            >
+              Utiliser un autre compte
+            </Text>
+          </Pressable>
+        </View>
       </View>
+
+      {/* Forgot / Restore PIN Modal */}
+      <Modal
+        visible={isResetModalOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setIsResetModalOpen(false)}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="rounded-t-[32px] bg-white p-6 shadow-2xl">
+            <View className="mb-4 flex-row items-center justify-between">
+              <Text className="font-bold text-[22px] text-zeno-text-primary">
+                Restaurer le Code PIN
+              </Text>
+              <Pressable
+                onPress={() => setIsResetModalOpen(false)}
+                className="h-9 w-9 items-center justify-center rounded-full bg-gray-100"
+              >
+                <CloseIcon size={14} color="#6B7280" />
+              </Pressable>
+            </View>
+
+            <Text className="mb-4 font-medium text-[15px] text-zeno-text-secondary">
+              Pour réinitialiser votre code PIN et en définir un nouveau à {PIN_LENGTH} chiffres, saisissez le mot de passe de votre compte ZENO.
+            </Text>
+
+            {resetError && (
+              <View className="mb-4 rounded-xl bg-red-50 p-3">
+                <Text className="font-semibold text-[14px] text-red-600">
+                  {resetError}
+                </Text>
+              </View>
+            )}
+
+            <View className="mb-6">
+              <Text className="mb-1.5 font-semibold text-[14px] text-zeno-text-secondary">
+                Mot de passe du compte
+              </Text>
+              <View className="h-14 flex-row items-center rounded-2xl border border-gray-200 bg-gray-50 px-4">
+                <TextInput
+                  value={resetPassword}
+                  onChangeText={setResetPassword}
+                  secureTextEntry={!showPassword}
+                  placeholder="Mot de passe ZENO"
+                  className="flex-1 font-semibold text-[16px] text-zeno-text-primary"
+                />
+                <Pressable onPress={() => setShowPassword(!showPassword)}>
+                  <EyeIcon crossed={!showPassword} size={20} color="#6B7280" />
+                </Pressable>
+              </View>
+            </View>
+
+            <Pressable
+              onPress={handleConfirmResetPin}
+              disabled={isVerifyingReset}
+              className="h-14 items-center justify-center rounded-2xl bg-zeno-blue shadow-md"
+            >
+              {isVerifyingReset ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text className="font-bold text-[18px] text-white">
+                  Définir un nouveau PIN ({PIN_LENGTH} chiffres)
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

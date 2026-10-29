@@ -1,5 +1,6 @@
 import { getClerkErrorMessage } from "@/lib/clerk-error";
 import { useSignIn } from "@clerk/clerk-expo";
+import { router } from "expo-router";
 import { useCallback, useState } from "react";
 
 /**
@@ -9,6 +10,11 @@ import { useCallback, useState } from "react";
  * phone number lives in the user's metadata (verified through our own backend
  * because Clerk's SMS does not reach our markets), so it is not a Clerk
  * identifier and cannot be used to sign in without a dedicated lookup endpoint.
+ *
+ * MFA handling:
+ * When Clerk returns `needs_second_factor` (email_code strategy), we store the
+ * signIn object in memory and navigate to a dedicated verification screen so the
+ * user can enter the one-time code sent to their email.
  */
 export function useEmailSignIn() {
   const { signIn, setActive, isLoaded } = useSignIn();
@@ -36,17 +42,32 @@ export function useEmailSignIn() {
           return true;
         }
 
-        // Any other status means Clerk wants another step we do not collect here
-        // — most often a second factor (MFA) enabled in the dashboard, or the
-        // account's email is still unverified. Log exactly what Clerk expects so
-        // the cause is unambiguous instead of a generic message.
+        // ── MFA: Clerk requires a second factor (email OTP) ──────────────────
+        if (attempt.status === "needs_second_factor") {
+          const emailFactor = attempt.supportedSecondFactors?.find(
+            (f: any) => f.strategy === "email_code"
+          );
+
+          if (emailFactor) {
+            // Ask Clerk to send the OTP email
+            await signIn.prepareSecondFactor({
+              strategy: "email_code",
+              emailAddressId: emailFactor.emailAddressId,
+            });
+
+            // Navigate to the MFA verification screen
+            router.push("/verify-mfa");
+            return false; // Not yet complete — MFA screen takes over
+          }
+        }
+
+        // Any other unhandled status — log for debugging
         console.warn("[clerk] sign-in not complete", {
           status: attempt.status,
-          supportedFirstFactors: attempt.supportedFirstFactors,
           supportedSecondFactors: attempt.supportedSecondFactors,
         });
 
-        setError("Additional verification is required to sign in.");
+        setError("Additional verification is required. Please contact support.");
         return false;
       } catch (cause) {
         setError(

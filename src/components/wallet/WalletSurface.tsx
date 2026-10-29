@@ -1,16 +1,12 @@
-import { durations, easings, gesture, springs } from "@/constants/motion";
+import { easings } from "@/constants/motion";
 import { WALLET_SCREENS, type WalletScreen } from "@/data/wallet-screens";
-import { useWalletNav } from "@/store/wallet-nav";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useWindowDimensions, type ViewStyle } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { View } from "react-native";
 import Animated, {
-    interpolate,
     runOnJS,
     useAnimatedStyle,
-    useReducedMotion,
     useSharedValue,
-    withSpring,
     withTiming,
 } from "react-native-reanimated";
 
@@ -25,14 +21,11 @@ type WalletSurfaceProps = {
 /**
  * A Wallet "room" — one animated surface layered over Wallet Home.
  *
- * Motion model (AGENTS.md — Wallet Animation Rules): rooms travel vertically.
- * A feature surface rises from below the frame; the ZENO Card drops in from
- * above. Both leave upward, so the whole ecosystem reads as one continuous
- * vertical stack rather than a set of independent screen pushes.
- *
- * The surface owns its gesture and its transition; the screen it wraps owns
- * only its content. Swiping up past the distance or velocity threshold calls
- * `goHome()`; anything short of that springs back.
+ * Performance model:
+ * - Entry: slides in from below in 180ms
+ * - Exit: immediately hides children (so the JS thread stops rendering the heavy
+ *   FlatList/SVG content), then animates the empty shell off-screen in 120ms.
+ *   This makes "return to Home" feel instant even on low-end devices.
  */
 export function WalletSurface({
   screen,
@@ -41,88 +34,48 @@ export function WalletSurface({
   children,
 }: WalletSurfaceProps) {
   const { height } = useWindowDimensions();
-  const goHome = useWalletNav((s) => s.goHome);
-  const reduceMotion = useReducedMotion();
 
   const { origin, shellColor } = WALLET_SCREENS[screen];
   const enterFrom = origin === "below" ? height : -height;
 
   const translateY = useSharedValue(enterFrom);
+  const opacity = useSharedValue(1);
 
-  const panGesture = Gesture.Pan()
-    .activeOffsetY([-12, 12])
-    .onUpdate((event) => {
-      const dy = event.translationY;
-      // Upward drag tracks the finger; downward drag is damped, not blocked.
-      translateY.value = dy < 0 ? dy : dy * gesture.overdragFactor;
-    })
-    .onEnd((event) => {
-      const travelledUp = -event.translationY;
-      const flickedUp = -event.velocityY;
-
-      if (
-        travelledUp > gesture.distanceThreshold ||
-        flickedUp > gesture.velocityThreshold
-      ) {
-        runOnJS(goHome)();
-        return;
-      }
-
-      translateY.value = reduceMotion
-        ? withTiming(0, { duration: durations.cancel })
-        : withSpring(0, springs.surface);
-    });
+  // When closing: immediately drop children from the tree so the JS thread
+  // stops rendering the heavy surface content during the exit animation.
+  const [showContent, setShowContent] = useState(true);
 
   useEffect(() => {
     if (visible) {
-      translateY.value = reduceMotion
-        ? withTiming(0, { duration: durations.floating })
-        : withSpring(0, springs.liquid);
+      setShowContent(true);
+      opacity.value = 1;
+      translateY.value = withTiming(0, {
+        duration: 180,
+        easing: easings.out,
+      });
       return;
     }
 
-    // Rooms always exit upward — see the motion model above.
+    // 1. Instantly hide children — frees the JS thread immediately
+    setShowContent(false);
+
+    // 2. Fade out the shell fast so the user sees Home right away
+    opacity.value = withTiming(0, { duration: 80 });
+
+    // 3. Slide the empty shell off-screen, then notify navigator
     translateY.value = withTiming(
       -height,
-      { duration: durations.surface, easing: easings.out },
+      { duration: 100, easing: easings.in },
       (finished) => {
         if (finished) runOnJS(onClosed)();
       }
     );
-  }, [visible, height, reduceMotion, translateY, onClosed]);
+  }, [visible, height, translateY, opacity, onClosed]);
 
-  const surfaceStyle = useAnimatedStyle(() => {
-    const progress = interpolate(
-      Math.abs(translateY.value),
-      [height, 0],
-      [0, 1],
-      "clamp"
-    );
-    const borderRadius = interpolate(progress, [0, 0.4, 1], [60, 36, 0], "clamp");
-    const scale = interpolate(progress, [0, 1], [0.9, 1], "clamp");
-
-    return {
-      borderRadius,
-      transform: [{ translateY: translateY.value }, { scale }],
-    };
-  });
-
-  // Content settles in smoothly from center after liquid surface expands.
-  const contentStyle = useAnimatedStyle(() => {
-    const progress = interpolate(
-      Math.abs(translateY.value),
-      [height * 0.4, 0],
-      [0, 1],
-      "clamp"
-    );
-    return {
-      opacity: progress,
-      transform: [
-        { translateY: (1 - progress) * 20 },
-        { scale: interpolate(progress, [0, 1], [0.94, 1], "clamp") },
-      ],
-    };
-  });
+  const surfaceStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    opacity: opacity.value,
+  }));
 
   const fill: ViewStyle = {
     position: "absolute",
@@ -133,14 +86,12 @@ export function WalletSurface({
   };
 
   return (
-    <GestureDetector gesture={panGesture}>
-      <Animated.View
-        style={[fill, { backgroundColor: shellColor }, surfaceStyle]}
-      >
-        <Animated.View style={[{ flex: 1 }, contentStyle]}>
-          {children}
-        </Animated.View>
-      </Animated.View>
-    </GestureDetector>
+    <Animated.View
+      style={[fill, { backgroundColor: shellColor }, surfaceStyle]}
+    >
+      <View style={{ flex: 1 }}>
+        {showContent ? children : null}
+      </View>
+    </Animated.View>
   );
 }

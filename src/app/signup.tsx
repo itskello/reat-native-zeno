@@ -1,4 +1,4 @@
-import { Chevron } from "@/components/ui/Chevron";
+﻿import { Chevron } from "@/components/ui/Chevron";
 import { CountrySheet } from "@/components/ui/CountrySheet";
 import { images } from "@/constants/images";
 import { SupportedCountry } from "@/data/countries";
@@ -134,3 +134,4 @@ export default function SignUpScreen() {
     </View>
   );
 }
+

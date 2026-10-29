@@ -21,6 +21,24 @@ export const currencies: Record<CurrencyCode, Currency> = {
     decimalSeparator: ",",
     thousandsSeparator: " ",
   },
+  USD: {
+    code: "USD",
+    symbol: "USD",
+    name: "US Dollar",
+    decimalDigits: 2,
+    symbolPosition: "suffix",
+    decimalSeparator: ".",
+    thousandsSeparator: ",",
+  },
+  EUR: {
+    code: "EUR",
+    symbol: "EUR",
+    name: "Euro",
+    decimalDigits: 2,
+    symbolPosition: "suffix",
+    decimalSeparator: ",",
+    thousandsSeparator: " ",
+  },
 };
 
 /** The currency used when none is specified yet (both markets use XOF). */

@@ -1,4 +1,4 @@
-import { MailIcon } from "@/components/ui/MailIcon";
+﻿import { MailIcon } from "@/components/ui/MailIcon";
 import { images } from "@/constants/images";
 import { usePasswordReset } from "@/lib/use-password-reset";
 import { Image } from "expo-image";
@@ -159,3 +159,4 @@ export default function ForgotPasswordScreen() {
     </KeyboardAvoidingView>
   );
 }
+

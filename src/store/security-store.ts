@@ -1,5 +1,6 @@
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 import { create } from "zustand";
 
 const BIOMETRIC_ENABLED_KEY = "zeno_biometric_enabled";
@@ -15,6 +16,34 @@ type StoredPin = {
   salt: string;
   /** SHA-256 of `salt + pin` (hex). The plaintext PIN is never persisted. */
   hash: string;
+};
+
+/**
+ * Cross-platform secure storage.
+ * - Native (iOS/Android): expo-secure-store (hardware-backed keychain / keystore)
+ * - Web: localStorage (dev/testing only — not production-secure)
+ */
+const storage = {
+  async getItem(key: string): Promise<string | null> {
+    if (Platform.OS === "web") {
+      return localStorage.getItem(key);
+    }
+    return SecureStore.getItemAsync(key);
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    if (Platform.OS === "web") {
+      localStorage.setItem(key, value);
+      return;
+    }
+    await SecureStore.setItemAsync(key, value);
+  },
+  async removeItem(key: string): Promise<void> {
+    if (Platform.OS === "web") {
+      localStorage.removeItem(key);
+      return;
+    }
+    await SecureStore.deleteItemAsync(key);
+  },
 };
 
 /**
@@ -64,27 +93,21 @@ export const useSecurityStore = create<SecurityState>((set) => ({
 
   setBiometricEnabled: async (enabled: boolean) => {
     try {
-      await SecureStore.setItemAsync(
-        BIOMETRIC_ENABLED_KEY,
-        enabled ? "true" : "false"
-      );
+      await storage.setItem(BIOMETRIC_ENABLED_KEY, enabled ? "true" : "false");
       set({ biometricEnabled: enabled });
     } catch {
-      // If persistence fails, keep the preference in memory only. The user
-      // re-enrolls on the next launch, which is annoying but safe.
       set({ biometricEnabled: enabled });
     }
   },
 
   loadBiometricPreference: async () => {
     try {
-      const stored = await SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY);
+      const stored = await storage.getItem(BIOMETRIC_ENABLED_KEY);
       set({
         biometricEnabled: stored === "true" ? true : stored === "false" ? false : null,
         isLoaded: true,
       });
     } catch {
-      // If SecureStore read fails, treat it as "never set" and leave it null.
       set({ biometricEnabled: null, isLoaded: true });
     }
   },
@@ -98,24 +121,18 @@ export const useSecurityStore = create<SecurityState>((set) => ({
       const hash = await hashPin(salt, pin);
 
       const payload: StoredPin = { salt, hash };
-      await SecureStore.setItemAsync(
-        pinStorageKey(userId),
-        JSON.stringify(payload)
-      );
+      await storage.setItem(pinStorageKey(userId), JSON.stringify(payload));
       return true;
-    } catch {
-      // Never fall back to plaintext or in-memory storage for the PIN: if we
-      // cannot persist it securely, report failure so the caller can react.
+    } catch (e) {
+      if (__DEV__) console.warn("[security-store] setPin failed:", e);
       return false;
     }
   },
 
   verifyPin: async (userId: string, pin: string) => {
     try {
-      const raw = await SecureStore.getItemAsync(pinStorageKey(userId));
-      if (!raw) {
-        return false;
-      }
+      const raw = await storage.getItem(pinStorageKey(userId));
+      if (!raw) return false;
 
       const { salt, hash } = JSON.parse(raw) as StoredPin;
       const candidate = await hashPin(salt, pin);
@@ -127,7 +144,7 @@ export const useSecurityStore = create<SecurityState>((set) => ({
 
   hasPin: async (userId: string) => {
     try {
-      const raw = await SecureStore.getItemAsync(pinStorageKey(userId));
+      const raw = await storage.getItem(pinStorageKey(userId));
       return raw !== null;
     } catch {
       return false;

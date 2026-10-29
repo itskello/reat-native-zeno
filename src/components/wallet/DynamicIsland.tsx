@@ -1,3 +1,4 @@
+import { BellIcon } from "@/components/ui/BellIcon";
 import { GetPaidSurface } from "@/components/wallet/GetPaidSurface";
 import { IslandLiquidShape } from "@/components/wallet/IslandLiquidShape";
 import { SendMoneySurface } from "@/components/wallet/SendMoneySurface";
@@ -12,8 +13,10 @@ import {
 import { isIslandRoom, type WalletScreen } from "@/data/wallet-screens";
 import { cardDragY } from "@/store/wallet-gesture";
 import { useWalletIslandTitle, useWalletNav, useWalletRoom } from "@/store/wallet-nav";
+import { useUser } from "@clerk/clerk-expo";
 import { Image } from "expo-image";
-import { Text, View, useWindowDimensions } from "react-native";
+import { router } from "expo-router";
+import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import Animated, {
     interpolate,
     runOnJS,
@@ -48,6 +51,11 @@ export function DynamicIsland({
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const title = useWalletIslandTitle();
   const room = useWalletRoom();
+  const { user } = useUser();
+  const firstName = user?.firstName ?? "there";
+  const avatarSource = user?.imageUrl
+    ? { uri: user.imageUrl }
+    : images.avatarPlaceholder;
   const clearClosing = useWalletNav((s) => s.clearClosing);
 
   /**
@@ -77,31 +85,61 @@ export function DynamicIsland({
     }
   );
 
-  /** The pill's own geometry — it widens as the card closes. */
+  /** The pill's own geometry — stays in place on scroll, widens to fit profile. */
   const pillStyle = useAnimatedStyle(() => {
+    const c = collapse ? collapse.value : 0;
     const b = pillBox(openness.value, scale);
-    const lift = collapse
-      ? interpolate(collapse.value, [0, 1], [0, -liftDistance], "clamp") *
-        (1 - openness.value)
-      : 0;
+
+    // Pill widens to near full-screen on scroll collapse (only when card is closed).
+    const cardClosed = 1 - openness.value;
+    const collapseWidth = interpolate(
+      c,
+      [0, 0.6],
+      [b.w, (windowWidth - 24)],
+      "clamp"
+    ) * cardClosed + b.w * openness.value;
+
+    const collapseLeft = interpolate(
+      c,
+      [0, 0.6],
+      [b.x, 12],
+      "clamp"
+    ) * cardClosed + b.x * openness.value;
 
     return {
-      left: b.x,
+      left: collapseLeft,
       top: b.y,
-      width: b.w,
+      width: collapseWidth,
       height: b.h,
       borderRadius: b.r,
-      transform: [{ translateY: lift }],
     };
   });
 
   /**
-   * The pill's label. It fades out as the card opens — at full openness the
-   * pill is only 165px wide and the card title belongs to the surface below.
+   * Default pill content (ZENO CARD + Mastercard).
+   * Fades out as the card opens OR as scroll collapse progresses.
    */
-  const pillContentStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(openness.value, [0, 0.45], [1, 0], "clamp"),
-  }));
+  const pillContentStyle = useAnimatedStyle(() => {
+    const c = collapse ? collapse.value : 0;
+    const opacityByCard = interpolate(openness.value, [0, 0.45], [1, 0], "clamp");
+    const opacityByScroll = interpolate(c, [0, 0.35], [1, 0], "clamp");
+    return {
+      opacity: Math.min(opacityByCard, opacityByScroll),
+    };
+  });
+
+  /**
+   * Profile content inside the pill — fades IN as the greeting scrolls up.
+   * Stays pinned and centered once fully visible. Only when card is closed.
+   */
+  const profileContentStyle = useAnimatedStyle(() => {
+    const c = collapse ? collapse.value : 0;
+    const opacityByScroll = interpolate(c, [0.3, 0.7], [0, 1], "clamp");
+    const opacityByCard = interpolate(openness.value, [0, 0.2], [1, 0], "clamp");
+    return {
+      opacity: opacityByScroll * opacityByCard,
+    };
+  });
 
   /**
    * The card surface, clipped to `islande model`. The user asked for the card
@@ -154,6 +192,7 @@ export function DynamicIsland({
       {/* The fused black silhouette of both islands. */}
       <IslandLiquidShape
         openness={openness}
+        collapse={collapse}
         width={windowWidth}
         height={windowHeight}
       />
@@ -189,6 +228,7 @@ export function DynamicIsland({
         pointerEvents="box-none"
         style={[{ position: "absolute" }, pillStyle]}
       >
+        {/* Default: ZENO CARD + Mastercard — fades out on scroll */}
         <Animated.View
           style={pillContentStyle}
           className="h-full flex-row items-center justify-between pl-7 pr-3"
@@ -201,6 +241,62 @@ export function DynamicIsland({
             style={{ width: 36, height: 36 }}
             contentFit="contain"
           />
+        </Animated.View>
+
+        {/* Collapsed: Profile info — centered inside the pill, fades in on scroll */}
+        <Animated.View
+          style={[
+            {
+              position: "absolute",
+              left: 0,
+              top: 0,
+              right: 0,
+              bottom: 0,
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 16,
+            },
+            profileContentStyle,
+          ]}
+        >
+          <Pressable
+            onPress={() => router.push("/profile")}
+            style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+            hitSlop={8}
+          >
+            <Image
+              source={avatarSource}
+              style={{ width: 44, height: 44, borderRadius: 22 }}
+              contentFit="cover"
+            />
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text
+                allowFontScaling={false}
+                numberOfLines={1}
+                style={{ fontWeight: "700", fontSize: 16, color: "#ffffff" }}
+              >
+                Hey {firstName}
+              </Text>
+              <Text
+                allowFontScaling={false}
+                style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 1 }}
+              >
+                Welcome Back
+              </Text>
+            </View>
+          </Pressable>
+          <View
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 19,
+              backgroundColor: "rgba(255,255,255,0.15)",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <BellIcon size={18} color="#ffffff" />
+          </View>
         </Animated.View>
       </Animated.View>
     </View>

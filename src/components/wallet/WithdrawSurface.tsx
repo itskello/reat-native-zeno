@@ -1,4 +1,4 @@
-import { Chevron } from "@/components/ui/Chevron";
+﻿import { Chevron } from "@/components/ui/Chevron";
 import { CloseIcon } from "@/components/ui/CloseIcon";
 import { images } from "@/constants/images";
 import { springs } from "@/constants/motion";
@@ -181,7 +181,7 @@ function Header({
         {onBack ? (
           <Image
             source={images.back}
-            style={{ width: 38, height: 38 }}
+            style={{ width: 50, height: 50 }}
             contentFit="contain"
           />
         ) : (
@@ -401,7 +401,7 @@ function ProviderRow({
       {provider.logoKey ? (
         <Image
           source={images.providers[provider.logoKey]}
-          style={{ width: 38, height: 38, borderRadius: 6 }}
+          style={{ width: 50, height: 50, borderRadius: 6 }}
           contentFit="contain"
         />
       ) : (
@@ -770,3 +770,4 @@ function CheckGlyph({ size, color }: { size: number; color: string }) {
 function formatValue(value: number) {
   return value.toFixed(1);
 }
+

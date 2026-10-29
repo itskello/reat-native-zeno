@@ -1,4 +1,4 @@
-import { images } from "@/constants/images";
+﻿import { images } from "@/constants/images";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -76,3 +76,4 @@ export default function FingerprintSuccessScreen() {
     </View>
   );
 }
+

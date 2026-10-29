@@ -1,4 +1,4 @@
-import { EyeIcon } from "@/components/ui/EyeIcon";
+﻿import { EyeIcon } from "@/components/ui/EyeIcon";
 import { LockIcon } from "@/components/ui/LockIcon";
 import { images } from "@/constants/images";
 import { useEmailSignIn } from "@/lib/use-email-sign-in";
@@ -265,3 +265,4 @@ export default function LoginScreen() {
     </KeyboardAvoidingView>
   );
 }
+

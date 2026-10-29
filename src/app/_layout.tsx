@@ -5,7 +5,13 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { configureReanimatedLogger, ReanimatedLogLevel } from "react-native-reanimated";
 import "../../global.css";
+
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false,
+});
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // ignore splash-screen race conditions during startup

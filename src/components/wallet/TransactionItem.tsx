@@ -3,6 +3,7 @@ import { formatAmount } from "@/data/currencies";
 import { getTransactionType } from "@/data/transaction-types";
 import type { CurrencyCode } from "@/types/content";
 import type { Transaction, TransactionStatus } from "@/types/wallet";
+import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 
 type TransactionItemProps = {
@@ -22,7 +23,7 @@ const STATUS_LABEL: Record<TransactionStatus, string> = {
  * color come from `data/transaction-types.ts` so the whole app stays visually
  * consistent per transaction type.
  */
-export function TransactionItem({
+export const TransactionItem = memo(function TransactionItem({
   transaction,
   currency,
   onPress,
@@ -80,4 +81,4 @@ export function TransactionItem({
       </View>
     </Pressable>
   );
-}
+});

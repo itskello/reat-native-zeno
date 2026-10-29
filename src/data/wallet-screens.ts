@@ -44,6 +44,13 @@ export type WalletScreenConfig = {
   shellColor: string;
   origin: SurfaceOrigin;
   host: SurfaceHost;
+  /**
+   * Whether the Dynamic Island capsule is visible on this screen.
+   * True only for HOME and CARD — the two screens where it has a navigation
+   * role (CARD is attached to it; HOME shows it as a hint to swipe down).
+   * On all other rooms (Transactions, Send, Add, Withdraw) it is hidden.
+   */
+  showIsland: boolean;
 };
 
 export const WALLET_SCREENS: Record<WalletScreen, WalletScreenConfig> = {
@@ -52,47 +59,49 @@ export const WALLET_SCREENS: Record<WalletScreen, WalletScreenConfig> = {
     shellColor: colors.zenoBackground,
     origin: "below",
     host: "surface",
+    showIsland: true,
   },
   CARD: {
     title: "Zeno Card",
     shellColor: colors.zenoCardShell,
     origin: "above",
     host: "island",
+    showIsland: true,
   },
   SEND: {
     title: "Send Money",
     shellColor: colors.zenoSky,
     origin: "above",
     host: "island",
+    showIsland: false,
   },
   GETPAID: {
     title: "Get Paid",
-    /**
-     * App Shell behind the Get Paid hero — light sky blue, matching the design's
-     * outer background (AGENTS.md: "Send / Get Paid → light blue shell").
-     * The hero block itself is dark (the island liquid shape paints that).
-     */
     shellColor: colors.zenoSky,
     origin: "above",
     host: "island",
+    showIsland: false,
   },
   ADD: {
     title: "Add Money",
     shellColor: colors.zenoSky,
     origin: "below",
     host: "surface",
+    showIsland: false,
   },
   WITHDRAW: {
     title: "Withdraw Money",
     shellColor: colors.zenoSky,
     origin: "above",
     host: "island",
+    showIsland: false,
   },
   TRANSACTIONS: {
     title: "Transactions",
     shellColor: colors.zenoSky,
     origin: "below",
     host: "surface",
+    showIsland: false,
   },
 };
 
