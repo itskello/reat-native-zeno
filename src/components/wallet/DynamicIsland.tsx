@@ -16,6 +16,8 @@ import { useWalletIslandTitle, useWalletNav, useWalletRoom } from "@/store/walle
 import { useUser } from "@clerk/clerk-expo";
 import { Image } from "expo-image";
 import { router } from "expo-router";
+import { useState } from "react";
+import Svg, { Path } from "react-native-svg";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import Animated, {
     interpolate,
@@ -50,6 +52,7 @@ export function DynamicIsland({
 }: DynamicIslandProps) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const title = useWalletIslandTitle();
+  const [isCardFrozen, setIsCardFrozen] = useState(false);
   const room = useWalletRoom();
   const { user } = useUser();
   const firstName = user?.firstName ?? "there";
@@ -218,7 +221,7 @@ export function DynamicIsland({
           ) : modelRoom === "WITHDRAW" ? (
             <WithdrawSurface contentTopGap={12} />
           ) : (
-            <ZenoCardSurface contentTopGap={12} />
+            <ZenoCardSurface contentTopGap={12} onFrozenChange={setIsCardFrozen} />
           )}
         </Animated.View>
       </Animated.View>
@@ -234,13 +237,17 @@ export function DynamicIsland({
           className="h-full flex-row items-center justify-between pl-7 pr-3"
         >
           <Text allowFontScaling={false} numberOfLines={1} className="text-[16px]">
-            <IslandTitle title={title} />
+            <IslandTitle title={title} muted={title === "Zeno Card" && isCardFrozen} />
           </Text>
-          <Image
-            source={images.mastercard}
-            style={{ width: 36, height: 36 }}
-            contentFit="contain"
-          />
+          {title === "Zeno Card" && isCardFrozen ? (
+            <FrozenCardIcon />
+          ) : (
+            <Image
+              source={images.mastercard}
+              style={{ width: 36, height: 36 }}
+              contentFit="contain"
+            />
+          )}
         </Animated.View>
 
         {/* Collapsed: Profile info — centered inside the pill, fades in on scroll */}
@@ -304,12 +311,29 @@ export function DynamicIsland({
 }
 
 /** First word muted, rest emphasised — the locked island typography. */
-function IslandTitle({ title }: { title: string }) {
+function IslandTitle({ title, muted = false }: { title: string; muted?: boolean }) {
   const [first, ...rest] = title.split(" ");
   return (
     <>
-      <Text className="font-semibold text-white/45">{first} </Text>
-      <Text className="font-bold text-white">{rest.join(" ")}</Text>
+      <Text className={`font-semibold ${muted ? "text-white/40" : "text-white/45"}`}>{first} </Text>
+      <Text className={`font-bold ${muted ? "text-white/40" : "text-white"}`}>{rest.join(" ")}</Text>
     </>
+  );
+}
+
+/** Compact frost mark shown in place of Mastercard while the card is frozen. */
+function FrozenCardIcon() {
+  return (
+    <View className="h-8 w-8 items-center justify-center rounded-full bg-[#C4EC5C]/15">
+      <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M8 5l4 2.3L16 5M8 19l4-2.3L16 19M4.2 7.5h4.6V3.9M19.8 16.5h-4.6v3.6"
+          stroke="#C4EC5C"
+          strokeWidth={1.7}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    </View>
   );
 }

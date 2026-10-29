@@ -1,4 +1,3 @@
-import { ArrowIcon } from "@/components/ui/ArrowIcon";
 import { CloseIcon } from "@/components/ui/CloseIcon";
 import { EyeIcon } from "@/components/ui/EyeIcon";
 import { images } from "@/constants/images";
@@ -6,66 +5,27 @@ import { springs } from "@/constants/motion";
 import { formatAmount, getCurrency } from "@/data/currencies";
 import { cardDragY } from "@/store/wallet-gesture";
 import { useWalletNav } from "@/store/wallet-nav";
-import { useWalletStore } from "@/store/wallet-store";
 import { colors } from "@/theme/colors";
+import { ZenoCardLogo } from "@/components/wallet/ZenoCardLogo";
+import { ZenoCardFrozenArtwork } from "@/components/wallet/ZenoCardFrozenArtwork";
 import { Image } from "expo-image";
 import { ZenoCardSkeleton } from "@/components/ui/Skeleton";
+import { VirtualCardFlowModal, type CardFlowPanel } from "@/components/wallet/VirtualCardFlowModal";
+import { TransactionItem } from "@/components/wallet/TransactionItem";
+import { useTransactionStore } from "@/store/transaction-store";
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@clerk/clerk-expo";
+import { isCardSandboxEnabled, virtualCardService, type CardBalanceResult, type VirtualCardOverview } from "@/features/virtual-card/card-service";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { withSpring } from "react-native-reanimated";
 
 type ZenoCardSurfaceProps = {
   contentTopGap: number;
+  onFrozenChange?: (frozen: boolean) => void;
 };
 
-type CardTransaction = {
-  id: string;
-  merchant: string;
-  date: string;
-  amount: string;
-  status: "Completed" | "Failed" | "Pending";
-  /** Row accent — the design varies the avatar colour per merchant. */
-  accent: string;
-  accentIcon: string;
-};
-
-/**
- * PLACEHOLDER card activity so the surface can be built and reviewed. The
- * backend is the source of truth for transactions (AGENTS.md — Financial Data
- * Rules); this list is replaced by a fetch in the transaction store later.
- */
-const CARD_TRANSACTIONS: CardTransaction[] = [
-  {
-    id: "card-tx-1",
-    merchant: "ADOBE ADOBE",
-    date: "Jul 18 2026 at 11:33am",
-    amount: "4.6 USD",
-    status: "Failed",
-    accent: colors.zenoGreen,
-    accentIcon: colors.zenoDark,
-  },
-  {
-    id: "card-tx-2",
-    merchant: "Adobe",
-    date: "Jul 18 2026 at 11:32am",
-    amount: "4.6 USD",
-    status: "Failed",
-    accent: colors.zenoGreen,
-    accentIcon: colors.zenoDark,
-  },
-  {
-    id: "card-tx-3",
-    merchant: "Zeno",
-    date: "Jul 15 2026 at 09:14am",
-    amount: "0.6 USD",
-    status: "Completed",
-    accent: "#D6E9FF",
-    accentIcon: colors.zenoBlue,
-  },
-];
-
-/** Aspect ratios of the two brand assets, so neither is ever distorted. */
-const CARD_ASPECT = 3470 / 2438;
-const LOGO_ASPECT = 3380 / 1424;
+/** Both supplied state artworks use the same display frame and proportions. */
+const CARD_ARTWORK_ASPECT = 1799 / 1196;
 
 /**
  * ZENO Card Surface (CARD room).
@@ -74,33 +34,81 @@ const LOGO_ASPECT = 3380 / 1424;
  * shape, the virtual card sits on it, and a white transactions sheet floats
  * above and bleeds off the bottom edge.
  *
- * The card is a single ready-made asset (`images.zenoCard` — both stacked
- * cards, already rotated, on transparency), so nothing here draws a card.
+ * The active and frozen card artwork switch inside one fixed-size frame.
  */
-export function ZenoCardSurface({ contentTopGap }: ZenoCardSurfaceProps) {
+export function ZenoCardSurface({ contentTopGap, onFrozenChange }: ZenoCardSurfaceProps) {
   const goHome = useWalletNav((s) => s.goHome);
-  const wallet = useWalletStore((s) => s.wallet);
-  const isWalletLoading = useWalletStore((s) => s.isLoading);
+  const navigateTo = useWalletNav((s) => s.navigateTo);
+  const { getToken } = useAuth();
+  const transactions = useTransactionStore((state) => state.transactions);
+  const cardTransactions = useMemo(
+    () => transactions.filter((item) => item.category === "card" || item.typeId === "card_payment"),
+    [transactions]
+  );
+  const [cardFlow, setCardFlow] = useState<CardFlowPanel | null>(null);
+  // Tracks frozen state locally; updated by VirtualCardFlowModal after a
+  // successful freeze/unfreeze API call (AGENTS.md — no financial logic in UI).
+  const [isFrozen, setIsFrozen] = useState(false);
+  const [card, setCard] = useState<VirtualCardOverview | null>(null);
+  const [cardLoading, setCardLoading] = useState(true);
+  const [cardError, setCardError] = useState<string | null>(null);
 
-  // The ZENO Card draws from the single Wallet balance — there is no separate
-  // card balance to top up (AGENTS.md — Wallet Financial Model).
-  const currency = wallet ? getCurrency(wallet.currency) : null;
-  const balanceLabel = wallet ? formatAmount(wallet.balance, wallet.currency) : "—";
-  const balanceNumber = currency
-    ? balanceLabel.replace(currency.symbol, "").trim()
-    : balanceLabel;
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const token = isCardSandboxEnabled ? "" : await getToken();
+      if (!token && !isCardSandboxEnabled) {
+        if (!cancelled) { setCardError("Reconnectez-vous pour consulter votre carte."); setCardLoading(false); }
+        return;
+      }
+      const result = await virtualCardService.getOverview(token ?? "");
+      if (cancelled) return;
+      if (result.ok) {
+        const validOverview =
+          Number.isFinite(Number(result.data.balance)) &&
+          Number(result.data.balance) >= 0 &&
+          /^\d{4}$/.test(result.data.last4) &&
+          (result.data.status === "active" || result.data.status === "frozen");
+        if (validOverview) {
+          setCard(result.data);
+          setIsFrozen(result.data.status === "frozen");
+        } else {
+          setCardError("Les informations de carte reçues sont invalides.");
+        }
+      } else setCardError(result.error);
+      setCardLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [getToken]);
+
+  useEffect(() => {
+    onFrozenChange?.(isFrozen);
+  }, [isFrozen, onFrozenChange]);
+
+  const currency = getCurrency(card?.currency ?? "USD");
+  const balanceLabel = formatAmount(Number(card?.balance ?? "0.00"), currency.code);
+  const balanceNumber = card ? Number(card.balance).toFixed(2) : "0.00";
 
   const handleClose = () => {
     cardDragY.value = withSpring(0, springs.liquid);
     goHome();
   };
 
-  // Show skeleton while wallet data loads
-  if (isWalletLoading) {
+  const handleTopUp = () => {
+    setCardFlow("topup");
+  };
+
+  const handleSeeAll = () => {
+    cardDragY.value = withSpring(0, springs.liquid);
+    navigateTo("TRANSACTIONS");
+  };
+
+  if (cardLoading) {
     return <ZenoCardSkeleton />;
   }
 
   return (
+    <View className="flex-1">
     <ScrollView
       className="flex-1"
       contentContainerStyle={{ paddingTop: contentTopGap }}
@@ -113,18 +121,9 @@ export function ZenoCardSurface({ contentTopGap }: ZenoCardSurfaceProps) {
       <View className="flex-1">
         {/* Header — "ZENO Card" centred, dismiss cross on the right. */}
         <View className="h-[34px] flex-row items-center justify-center px-6">
-          <Image
-            source={images.logoGreenLight}
-            style={{ height: 24, width: 24 * LOGO_ASPECT }}
-            contentFit="contain"
-            tintColor={colors.zenoGreen}
-          />
-          <Text
-            allowFontScaling={false}
-            className="ml-1.5 font-bold text-[24px] text-white"
-          >
-            Card
-          </Text>
+          <View style={{ transform: [{ translateY: 12 }] }}>
+            <ZenoCardLogo height={24} variant={isFrozen ? "muted" : "brand"} />
+          </View>
 
           <Pressable
             onPress={handleClose}
@@ -137,57 +136,65 @@ export function ZenoCardSurface({ contentTopGap }: ZenoCardSurfaceProps) {
           </Pressable>
         </View>
 
-        {/* Card balance — the Wallet balance, seen from the card. */}
-        <View className="mt-4 items-center">
+        {/* Card balance is separate from the wallet balance. */}
+        <View className="mt-8 items-center">
           <Text
             allowFontScaling={false}
-            className="font-medium text-[14px] text-white/70"
+            className={`font-medium text-[14px] ${isFrozen ? "text-white/40" : "text-white/70"}`}
           >
             Card Balance
           </Text>
-          <View className="mt-1 flex-row items-baseline">
-            <Text
-              allowFontScaling={false}
-              className="font-bold text-[44px] leading-[50px] text-white"
-            >
-              {balanceNumber}
-            </Text>
+          <View className="mt-1 flex-row items-start">
             {currency ? (
               <Text
                 allowFontScaling={false}
-                className="ml-1.5 font-bold text-[20px] text-white/70"
+                className={`mr-1 mt-1 font-bold text-[20px] ${isFrozen ? "text-white/40" : "text-white/70"}`}
               >
                 {currency.symbol}
               </Text>
             ) : null}
+            <Text
+              allowFontScaling={false}
+              className={`font-bold text-[44px] leading-[50px] ${isFrozen ? "text-white/45" : "text-white"}`}
+            >
+              {balanceNumber}
+            </Text>
           </View>
         </View>
+        {cardError ? <Text className="mt-2 text-center text-[12px] text-white/70">{cardError}</Text> : null}
 
-        {/* The two stacked virtual cards — one ready-made asset. */}
+        {/* Swap artwork in the same fixed frame so freeze/unfreeze never resizes the card. */}
         <View className="mt-3 px-7">
-          <Image
-            source={images.zenoCard}
-            style={{ width: "100%", aspectRatio: CARD_ASPECT }}
-            contentFit="contain"
-          />
+          <View className="w-full" style={{ aspectRatio: CARD_ARTWORK_ASPECT }}>
+            {isFrozen ? (
+              <ZenoCardFrozenArtwork />
+            ) : (
+              <Image
+                source={images.zenoCardActive}
+                style={{ width: "100%", height: "100%" }}
+                contentFit="contain"
+                accessibilityLabel="ZENO Card"
+              />
+            )}
+          </View>
         </View>
 
         <Text
           allowFontScaling={false}
-          className="mt-3 text-center font-medium text-[16px] text-white/85"
+          className={`mt-3 text-center font-medium text-[16px] ${isFrozen ? "text-white/40" : "text-white/85"}`}
         >
-          12/2031{"     "}••••• 5678
+          12/2031{"     "}••••• {card?.last4 ?? "••••"}
         </Text>
 
         {/* Card actions. */}
         <View className="mt-4 flex-row justify-center gap-x-10">
-          <CardAction label="Top Up" filled onPress={() => {}}>
-            <PlusGlyph color={colors.zenoDark} />
+          <CardAction label="Top Up" filled={!isFrozen} disabled={isFrozen} onPress={handleTopUp}>
+            <PlusGlyph color={isFrozen ? "#CBD3C1" : colors.zenoDark} />
           </CardAction>
-          <CardAction label="View Card" onPress={() => {}}>
-            <EyeIcon size={22} color={colors.zenoGreen} />
+          <CardAction label="View Card" disabled={isFrozen} onPress={() => setCardFlow("details-pin")}>
+            <EyeIcon size={22} color={isFrozen ? "#CBD3C1" : colors.zenoGreen} />
           </CardAction>
-          <CardAction label="More" onPress={() => {}}>
+          <CardAction label="More" onPress={() => { setCardFlow("more"); }}>
             <DotsGlyph color={colors.zenoGreen} />
           </CardAction>
         </View>
@@ -206,7 +213,7 @@ export function ZenoCardSurface({ contentTopGap }: ZenoCardSurfaceProps) {
             >
               Transactions
             </Text>
-            <Pressable hitSlop={10} className="active:opacity-60">
+            <Pressable onPress={handleSeeAll} hitSlop={10} className="active:opacity-60">
               <Text
                 allowFontScaling={false}
                 className="font-semibold text-[16px] text-zeno-green-deep"
@@ -216,61 +223,38 @@ export function ZenoCardSurface({ contentTopGap }: ZenoCardSurfaceProps) {
             </Pressable>
           </View>
 
-          <View className="mt-1">
-            {CARD_TRANSACTIONS.map((tx, index) => (
-              <View
-                key={tx.id}
-                className={`flex-row items-center py-4 ${
-                  index > 0 ? "border-t border-black/[0.06]" : ""
-                }`}
-              >
-                <View
-                  className="h-[34px] w-[34px] items-center justify-center rounded-full"
-                  style={{ backgroundColor: tx.accent }}
-                >
-                  <ArrowIcon size={15} color={tx.accentIcon} direction="up-right" />
-                </View>
-
-                <View className="ml-3 flex-1">
-                  <Text
-                    allowFontScaling={false}
-                    numberOfLines={1}
-                    className="font-bold text-[16px] text-zeno-text-primary"
-                  >
-                    {tx.merchant}
-                  </Text>
-                  <Text
-                    allowFontScaling={false}
-                    className="mt-0.5 text-[12px] text-zeno-text-secondary"
-                  >
-                    {tx.date}
-                  </Text>
-                </View>
-
-                <View className="items-end">
-                  <Text
-                    allowFontScaling={false}
-                    className="font-semibold text-[15px] text-zeno-text-primary"
-                  >
-                    {tx.amount}
-                  </Text>
-                  <Text
-                    allowFontScaling={false}
-                    className={`mt-0.5 text-[12px] font-medium ${
-                      tx.status === "Failed"
-                        ? "text-zeno-error"
-                        : "text-zeno-text-secondary"
-                    }`}
-                  >
-                    {tx.status}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
+          {cardTransactions.length > 0 ? (
+            <View className="mt-1 gap-y-2">
+              {cardTransactions.slice(0, 3).map((transaction) => (
+                <TransactionItem
+                  key={transaction.id}
+                  transaction={transaction}
+                  currency={transaction.currency ?? "USD"}
+                />
+              ))}
+            </View>
+          ) : (
+            <Text allowFontScaling={false} className="py-5 text-center text-[14px] text-zeno-text-secondary">
+              Card transactions will appear here.
+            </Text>
+          )}
         </View>
       </View>
     </ScrollView>
+      <VirtualCardFlowModal
+        panel={cardFlow}
+        onClose={() => setCardFlow(null)}
+        onPanelChange={setCardFlow}
+        cardBalance={card?.balance ?? "0.00"}
+        fundingWalletBalance={card?.fundingWalletBalance}
+        onCardStatusChange={(status) => setIsFrozen(status === "frozen")}
+        onBalanceChange={(result: CardBalanceResult) => setCard((current) => current ? {
+          ...current,
+          balance: result.cardBalance,
+          fundingWalletBalance: result.walletBalance.toFixed(2),
+        } : current)}
+      />
+    </View>
   );
 }
 
@@ -278,31 +262,45 @@ export function ZenoCardSurface({ contentTopGap }: ZenoCardSurfaceProps) {
 function CardAction({
   label,
   filled = false,
+  disabled = false,
   onPress,
   children,
 }: {
   label: string;
   filled?: boolean;
+  disabled?: boolean;
   onPress: () => void;
   children: React.ReactNode;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled }}
       className="items-center active:opacity-70"
     >
       <View
-        className={`h-[51px] w-[51px] items-center justify-center rounded-full ${
-          filled ? "bg-zeno-green" : "bg-white/10"
-        }`}
+        className={`h-[51px] w-[51px] items-center justify-center ${
+          disabled
+            ? "bg-[#535D4D]"
+            : filled
+              ? "bg-zeno-green"
+              : "bg-white/10"
+        } rounded-full`}
+        style={disabled ? {
+          width: 51,
+          height: 51,
+          borderRadius: 25.5,
+          backgroundColor: "#535D4D",
+        } : undefined}
       >
         {children}
       </View>
       <Text
         allowFontScaling={false}
-        className="mt-2 font-medium text-[13px] text-white/85"
+        className={`mt-2 font-medium text-[13px] ${disabled ? "text-white/65" : "text-white/85"}`}
       >
         {label}
       </Text>

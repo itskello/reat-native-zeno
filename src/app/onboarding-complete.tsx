@@ -88,8 +88,8 @@ export default function OnboardingCompleteScreen() {
 
   useEffect(() => {
     if (isReady) {
-      // Navigate to Wallet Home. Note: the root route "/" is the intro splash
-      // (it redirects to /welcome), so Wallet Home lives at the "/wallet" route.
+      // Replace the onboarding history with the wallet as the authenticated root.
+      router.dismissAll();
       router.replace("/wallet");
     }
   }, [isReady]);

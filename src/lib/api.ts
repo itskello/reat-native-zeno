@@ -90,6 +90,47 @@ async function post<T>(path: string, body: unknown): Promise<ApiResult<T>> {
   }
 }
 
+/** Authenticated request to a ZENO API route; card operations stay server-side. */
+export async function postAuthenticated<T>(
+  path: string,
+  sessionToken: string,
+  body: unknown = {}
+): Promise<ApiResult<T>> {
+  try {
+    const response = await fetch(endpoint(path), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionToken}`,
+      },
+      body: JSON.stringify(body),
+    });
+    const payload = (await response.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
+    if (!response.ok) {
+      const isUnconfiguredCardRoute =
+        response.status === 404 && path.startsWith("/api/cards/");
+      return {
+        ok: false,
+        error:
+          typeof payload.error === "string"
+            ? payload.error
+            : isUnconfiguredCardRoute
+              ? "Card operations are not configured on this server yet."
+              : "This card service is currently unavailable.",
+      };
+    }
+    return { ok: true, data: payload as T };
+  } catch {
+    return {
+      ok: false,
+      error: "We could not reach ZENO. Check your connection and try again.",
+    };
+  }
+}
+
 export function requestPhoneOtp(phone: string) {
   return post<{ token: string; expiresAt: number }>("/api/otp/send", { phone });
 }

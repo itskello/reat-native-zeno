@@ -6,10 +6,11 @@ import {
   SearchIcon,
 } from "@/components/ui/ProfileIcons";
 import { Image } from "expo-image";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { images } from "@/constants/images";
+import { PersonPlusIcon } from "@/components/ui/PersonPlusIcon";
 import Svg, { Path } from "react-native-svg";
 
 /** Close icon inline (X) */
@@ -29,7 +30,7 @@ function XIcon({ size = 16, color = "#FFFFFF" }: { size?: number; color?: string
 type MenuItem = {
   label: string;
   Icon: React.FC<{ size?: number; color?: string }>;
-  route: "/settings/support-help" | "/settings/support-messages" | "/settings/support-chat";
+  route: "/settings/support-help" | "/settings/support-messages" | "/settings/support-chat" | "/settings/referral";
 };
 
 const MENU_ITEMS: MenuItem[] = [
@@ -37,6 +38,7 @@ const MENU_ITEMS: MenuItem[] = [
   { label: "Messages", Icon: MessageChatIcon, route: "/settings/support-messages" },
   { label: "Trouver une réponse", Icon: SearchIcon, route: "/settings/support-help" },
   { label: "Contacter l'assistance", Icon: ArrowRightIcon, route: "/settings/support-chat" },
+  { label: "Parrainage", Icon: PersonPlusIcon, route: "/settings/referral" },
 ];
 
 /**
@@ -93,7 +95,7 @@ export default function SupportScreen() {
           {MENU_ITEMS.map((item, i) => (
             <Pressable
               key={item.label}
-              onPress={() => router.push(item.route)}
+              onPress={() => router.push(item.route as Href)}
               className={`flex-row items-center justify-between px-5 py-[18px] ${
                 i > 0 ? "border-t border-gray-100" : ""
               }`}

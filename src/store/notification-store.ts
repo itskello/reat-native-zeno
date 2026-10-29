@@ -22,6 +22,7 @@ type NotificationState = {
   notifications: AppNotification[];
   /** Number of unread notifications — drives the badge on the bell icon. */
   unreadCount: number;
+  addNotification: (notification: AppNotification) => void;
   markAllRead: () => void;
   markRead: (id: string) => void;
 };
@@ -89,6 +90,18 @@ const PLACEHOLDER_NOTIFICATIONS: AppNotification[] = [
 export const useNotificationStore = create<NotificationState>((set) => ({
   notifications: PLACEHOLDER_NOTIFICATIONS,
   unreadCount: PLACEHOLDER_NOTIFICATIONS.filter((n) => !n.read).length,
+
+  addNotification: (notification) =>
+    set((state) => {
+      if (state.notifications.some((item) => item.id === notification.id)) {
+        return state;
+      }
+      const notifications = [notification, ...state.notifications];
+      return {
+        notifications,
+        unreadCount: notifications.filter((item) => !item.read).length,
+      };
+    }),
 
   markAllRead: () =>
     set((state) => ({

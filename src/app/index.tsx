@@ -1,12 +1,15 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useEffect, useRef } from "react";
+import { useAuth } from "@clerk/clerk-expo";
+import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Text, View } from "react-native";
 import { images } from "@/constants/images";
 
 const HOLD_DURATION = 1400;
 
 export default function Index() {
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
+  const [introFinished, setIntroFinished] = useState(false);
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoShift = useRef(new Animated.Value(40)).current;
   const taglineOpacity = useRef(new Animated.Value(0)).current;
@@ -54,12 +57,17 @@ export default function Index() {
 
     intro.start(({ finished }) => {
       if (finished) {
-        router.replace("/welcome");
+        setIntroFinished(true);
       }
     });
 
     return () => intro.stop();
   }, [logoOpacity, logoShift, taglineOpacity, taglineShift, screenOpacity]);
+
+  useEffect(() => {
+    if (!introFinished || !isAuthLoaded) return;
+    router.replace(isSignedIn ? "/verify-pin" : "/welcome");
+  }, [introFinished, isAuthLoaded, isSignedIn]);
 
   return (
     <Animated.View

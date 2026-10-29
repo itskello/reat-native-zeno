@@ -23,10 +23,10 @@ export const currencies: Record<CurrencyCode, Currency> = {
   },
   USD: {
     code: "USD",
-    symbol: "USD",
+    symbol: "$",
     name: "US Dollar",
     decimalDigits: 2,
-    symbolPosition: "suffix",
+    symbolPosition: "prefix",
     decimalSeparator: ".",
     thousandsSeparator: ",",
   },

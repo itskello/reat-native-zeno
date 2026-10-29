@@ -6,8 +6,8 @@ import { create } from "zustand";
  *
  * PLACEHOLDER data for now so the Wallet Home list can be built. The backend
  * is the source of truth for real transactions (see AGENTS.md — Financial Data
- * Rules); `loadTransactions` is where the real fetch is wired later. Financial
- * records are never deleted — this store only ever reads.
+ * Rules); `loadTransactions` is where the real fetch is wired later. Confirmed
+ * actions are prepended immediately so the in-app activity updates at once.
  */
 
 const PLACEHOLDER_TRANSACTIONS: Transaction[] = [
@@ -241,6 +241,7 @@ type TransactionState = {
   transactions: Transaction[];
   isLoading: boolean;
   loadTransactions: () => Promise<void>;
+  addTransaction: (transaction: Transaction) => void;
 };
 
 export const useTransactionStore = create<TransactionState>((set) => ({
@@ -251,4 +252,10 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     // TODO: fetch the real transaction history from the backend and set it here.
     set({ transactions: PLACEHOLDER_TRANSACTIONS, isLoading: false });
   },
+  addTransaction: (transaction) =>
+    set((state) =>
+      state.transactions.some((item) => item.id === transaction.id)
+        ? state
+        : { transactions: [transaction, ...state.transactions] }
+    ),
 }));

@@ -8,14 +8,18 @@ import type { WalletScreen } from "@/data/wallet-screens";
 import { isIslandRoom, WALLET_SCREENS } from "@/data/wallet-screens";
 import { cardDragY } from "@/store/wallet-gesture";
 import { useWalletNav, useWalletRoom } from "@/store/wallet-nav";
+import { springs } from "@/constants/motion";
 import { colors } from "@/theme/colors";
-import { View } from "react-native";
+import { BackHandler, View } from "react-native";
+import { useFocusEffect } from "expo-router";
+import { useCallback } from "react";
 import Animated, {
     interpolateColor,
     useAnimatedScrollHandler,
     useAnimatedStyle,
     useSharedValue,
     withTiming,
+    withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -35,9 +39,36 @@ const COLLAPSE_RANGE = 90;
 export function WalletNavigator() {
   const insets = useSafeAreaInsets();
   const current = useWalletNav((s) => s.current);
+  const goHome = useWalletNav((s) => s.goHome);
   const clearClosing = useWalletNav((s) => s.clearClosing);
 
   const room = useWalletRoom();
+
+  // Wallet rooms live inside one route. Keep Android Back inside that model:
+  // close an open room/card first, and never reveal an old login route beneath
+  // the authenticated wallet. At Wallet Home, Back exits the app normally.
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          if (cardDragY.value > 1) {
+            cardDragY.value = withSpring(0, springs.liquid);
+            goHome();
+            return true;
+          }
+          if (current !== "HOME") {
+            goHome();
+            return true;
+          }
+          BackHandler.exitApp();
+          return true;
+        }
+      );
+
+      return () => subscription.remove();
+    }, [current, goHome])
+  );
   const roomVisible = current !== "HOME";
   const surfaceRoom = room && !isIslandRoom(room) ? room : null;
 

@@ -88,8 +88,9 @@ export default function ConnectionSuccessScreen() {
 
   useEffect(() => {
     if (isReady) {
-      // Navigate to Wallet Home. Note: the root route "/" is the intro splash
-      // (it redirects to /welcome), so Wallet Home lives at the "/wallet" route.
+      // Remove login/PIN routes from the authenticated back stack before entering
+      // the wallet, so Android Back can never reveal the login form underneath.
+      router.dismissAll();
       router.replace("/wallet");
     }
   }, [isReady]);
