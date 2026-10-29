@@ -9,6 +9,7 @@ import { useWalletNav } from "@/store/wallet-nav";
 import { useWalletStore } from "@/store/wallet-store";
 import { colors } from "@/theme/colors";
 import { Image } from "expo-image";
+import { ZenoCardSkeleton } from "@/components/ui/Skeleton";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { withSpring } from "react-native-reanimated";
 
@@ -79,6 +80,7 @@ const LOGO_ASPECT = 3380 / 1424;
 export function ZenoCardSurface({ contentTopGap }: ZenoCardSurfaceProps) {
   const goHome = useWalletNav((s) => s.goHome);
   const wallet = useWalletStore((s) => s.wallet);
+  const isWalletLoading = useWalletStore((s) => s.isLoading);
 
   // The ZENO Card draws from the single Wallet balance — there is no separate
   // card balance to top up (AGENTS.md — Wallet Financial Model).
@@ -93,11 +95,17 @@ export function ZenoCardSurface({ contentTopGap }: ZenoCardSurfaceProps) {
     goHome();
   };
 
+  // Show skeleton while wallet data loads
+  if (isWalletLoading) {
+    return <ZenoCardSkeleton />;
+  }
+
   return (
     <ScrollView
       className="flex-1"
-      contentContainerStyle={{ paddingTop: contentTopGap, paddingBottom: 36 }}
+      contentContainerStyle={{ paddingTop: contentTopGap }}
       showsVerticalScrollIndicator={false}
+      bounces={false}
     >
       {/* No background: the Dynamic Island's liquid shape paints the dark
           surface behind this content, so an opaque rect here would cover the
@@ -130,14 +138,14 @@ export function ZenoCardSurface({ contentTopGap }: ZenoCardSurfaceProps) {
         </View>
 
         {/* Card balance — the Wallet balance, seen from the card. */}
-        <View className="mt-7 items-center">
+        <View className="mt-4 items-center">
           <Text
             allowFontScaling={false}
             className="font-medium text-[14px] text-white/70"
           >
             Card Balance
           </Text>
-          <View className="mt-1.5 flex-row items-baseline">
+          <View className="mt-1 flex-row items-baseline">
             <Text
               allowFontScaling={false}
               className="font-bold text-[44px] leading-[50px] text-white"
@@ -156,7 +164,7 @@ export function ZenoCardSurface({ contentTopGap }: ZenoCardSurfaceProps) {
         </View>
 
         {/* The two stacked virtual cards — one ready-made asset. */}
-        <View className="mt-5 px-7">
+        <View className="mt-3 px-7">
           <Image
             source={images.zenoCard}
             style={{ width: "100%", aspectRatio: CARD_ASPECT }}
@@ -172,7 +180,7 @@ export function ZenoCardSurface({ contentTopGap }: ZenoCardSurfaceProps) {
         </Text>
 
         {/* Card actions. */}
-        <View className="mt-6 flex-row justify-center gap-x-10">
+        <View className="mt-4 flex-row justify-center gap-x-10">
           <CardAction label="Top Up" filled onPress={() => {}}>
             <PlusGlyph color={colors.zenoDark} />
           </CardAction>
@@ -184,8 +192,13 @@ export function ZenoCardSurface({ contentTopGap }: ZenoCardSurfaceProps) {
           </CardAction>
         </View>
 
-        {/* Floating white sheet — bleeds off the bottom of the surface. */}
-        <View className="mt-7 flex-1 overflow-hidden rounded-t-[26px] bg-white px-5 pt-5">
+        {/* Floating white sheet — paddingBottom covers the nav bar area.
+            bounces={false} on the ScrollView prevents overscroll showing the
+            dark background, so we only need a small bottom padding here. */}
+        <View
+          className="mt-7 overflow-hidden rounded-t-[26px] bg-white px-5 pt-5"
+          style={{ paddingBottom: 80 }}
+        >
           <View className="flex-row items-center justify-between">
             <Text
               allowFontScaling={false}

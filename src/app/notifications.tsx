@@ -1,9 +1,11 @@
 import { images } from "@/constants/images";
+import { NotificationsSkeleton } from "@/components/ui/Skeleton";
 import { ZenoLogoIcon } from "@/components/ui/ZenoLogoIcon";
 import {
   useNotificationStore,
   type AppNotification,
 } from "@/store/notification-store";
+import { useInitialLoading } from "@/lib/useInitialLoading";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useCallback, useEffect } from "react";
@@ -29,10 +31,23 @@ export default function NotificationsScreen() {
   const markRead = useNotificationStore((s) => s.markRead);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
 
-  // Mark all as read when the user opens the screen
+  const isLoading = useInitialLoading(300);
+
+  // Mark all as read when the user opens the screen (after skeleton fades)
   useEffect(() => {
-    markAllRead();
-  }, [markAllRead]);
+    if (!isLoading) markAllRead();
+  }, [isLoading, markAllRead]);
+
+  if (isLoading) {
+    return (
+      <View
+        className="flex-1 bg-[#F4FAFF]"
+        style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+      >
+        <NotificationsSkeleton />
+      </View>
+    );
+  }
 
   const handlePress = useCallback(
     (notif: AppNotification) => {

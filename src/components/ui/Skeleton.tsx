@@ -241,6 +241,102 @@ export function ProfileSkeleton() {
   );
 }
 
+/**
+ * Notifications inbox skeleton — matches the NotificationsScreen layout.
+ * Shows: back button, title, then notification rows (icon + 2 text lines).
+ */
+export function NotificationsSkeleton() {
+  return (
+    <View style={styles.homePad}>
+      {/* Header row: back button + "Tout marquer" placeholder */}
+      <SkeletonRow style={{ ...styles.mb20, justifyContent: "space-between" }}>
+        <Skeleton width={46} height={46} borderRadius={14} />
+        <Skeleton width={100} height={14} borderRadius={6} />
+      </SkeletonRow>
+
+      {/* Title */}
+      <Skeleton width="55%" height={32} borderRadius={10} style={styles.mb24} />
+
+      {/* Notification rows */}
+      {[0, 1, 2, 3, 4].map((i) => (
+        <View key={i}>
+          <SkeletonRow style={styles.txRow}>
+            {/* Icon */}
+            <Skeleton width={48} height={48} borderRadius={14} />
+            {/* Text block */}
+            <View style={[styles.col, { marginLeft: 16, flex: 1 }]}>
+              <Skeleton width="92%" height={13} borderRadius={6} />
+              <Skeleton width="80%" height={13} borderRadius={6} style={{ marginTop: 5 }} />
+              <Skeleton width="60%" height={13} borderRadius={6} style={{ marginTop: 5 }} />
+              <Skeleton width="45%" height={11} borderRadius={5} style={{ marginTop: 8 }} />
+            </View>
+          </SkeletonRow>
+          {i < 4 && <View style={{ height: 1, backgroundColor: "#E5E7EB", marginBottom: 14, marginLeft: 64 }} />}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * ZENO Card surface skeleton — shown while the card surface initialises.
+ * Mirrors the dark-surface layout: header, balance, card image, actions, tx sheet.
+ */
+export function ZenoCardSkeleton() {
+  return (
+    <View style={[styles.homePad, { paddingTop: 12 }]}>
+      {/* Header row: logo + close */}
+      <SkeletonRow style={{ ...styles.mb20, justifyContent: "space-between" }}>
+        <Skeleton width={100} height={22} borderRadius={8} />
+        <Skeleton width={28} height={28} borderRadius={14} />
+      </SkeletonRow>
+
+      {/* Balance */}
+      <View style={{ alignItems: "center", marginBottom: 20 }}>
+        <Skeleton width={80} height={13} borderRadius={6} />
+        <Skeleton width={140} height={48} borderRadius={10} style={{ marginTop: 8 }} />
+      </View>
+
+      {/* Card image placeholder */}
+      <Skeleton height={160} borderRadius={20} style={styles.mb16} />
+
+      {/* Card number line */}
+      <Skeleton width={180} height={14} borderRadius={6} style={{ alignSelf: "center", ...styles.mb24 }} />
+
+      {/* Action buttons */}
+      <SkeletonRow style={{ ...styles.mb24, justifyContent: "center", gap: 40 }}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={styles.actionSkel}>
+            <Skeleton width={51} height={51} borderRadius={26} />
+            <Skeleton width={44} height={11} borderRadius={5} style={{ marginTop: 6 }} />
+          </View>
+        ))}
+      </SkeletonRow>
+
+      {/* White sheet header */}
+      <SkeletonRow style={{ ...styles.mb16, justifyContent: "space-between" }}>
+        <Skeleton width={120} height={20} borderRadius={8} />
+        <Skeleton width={52} height={14} borderRadius={6} />
+      </SkeletonRow>
+
+      {/* Transaction rows */}
+      {[0, 1, 2].map((i) => (
+        <SkeletonRow key={i} style={styles.txRow}>
+          <Skeleton width={34} height={34} borderRadius={17} />
+          <View style={[styles.col, { marginLeft: 12, flex: 1 }]}>
+            <Skeleton width="50%" height={14} borderRadius={6} />
+            <Skeleton width="35%" height={11} borderRadius={5} style={{ marginTop: 5 }} />
+          </View>
+          <View style={styles.col}>
+            <Skeleton width={60} height={14} borderRadius={6} />
+            <Skeleton width={44} height={11} borderRadius={5} style={{ marginTop: 5 }} />
+          </View>
+        </SkeletonRow>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   bone: {
     backgroundColor: "#E5E7EB",

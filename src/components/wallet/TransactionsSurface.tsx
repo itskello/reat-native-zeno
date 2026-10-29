@@ -19,7 +19,6 @@ import type { Transaction } from "@/types/wallet";
 import { Image } from "expo-image";
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   InteractionManager,
   Modal,
@@ -29,6 +28,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { TransactionsSkeleton } from "@/components/ui/Skeleton";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type FilterTab = "all" | "received" | "sent" | "card";
@@ -147,9 +147,7 @@ export function TransactionsSurface({ contentTopGap }: TransactionsSurfaceProps)
 
       {/* ── Transaction List — grouped by date ── */}
       {!isReady ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="small" color="#0057FF" />
-        </View>
+        <TransactionsSkeleton />
       ) : groupedByDate.length === 0 ? (
         <View className="mt-12 items-center justify-center py-10">
           <Text
