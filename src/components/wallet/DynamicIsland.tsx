@@ -1,10 +1,13 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { BellIcon } from "@/components/ui/BellIcon";
 import { GetPaidSurface } from "@/components/wallet/GetPaidSurface";
 import { IslandLiquidShape } from "@/components/wallet/IslandLiquidShape";
 import { SendMoneySurface } from "@/components/wallet/SendMoneySurface";
 import { WithdrawSurface } from "@/components/wallet/WithdrawSurface";
+import { AddMoneySurface } from "@/components/wallet/AddMoneySurface";
 import { ZenoCardSurface } from "@/components/wallet/ZenoCardSurface";
 import { images } from "@/constants/images";
+import { getFinancialTitleSegments, type FinancialTitleKey } from "@/lib/localization";
 import {
     ISLAND_CANVAS_WIDTH,
     modelBox,
@@ -13,12 +16,13 @@ import {
 import { isIslandRoom, type WalletScreen } from "@/data/wallet-screens";
 import { cardDragY } from "@/store/wallet-gesture";
 import { useWalletIslandTitle, useWalletNav, useWalletRoom } from "@/store/wallet-nav";
+import { useLanguageStore } from "@/store/language-store";
 import { useUser } from "@clerk/clerk-expo";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
 import Svg, { Path } from "react-native-svg";
-import { Pressable, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, Text as NativeText, View, useWindowDimensions } from "react-native";
 import Animated, {
     interpolate,
     runOnJS,
@@ -206,12 +210,11 @@ export function DynamicIsland({
         style={[{ position: "absolute", overflow: "hidden" }, modelStyle]}
       >
         <Animated.View
-          // The room content is fixed for the whole morph — only its scale
-          // moves. Rasterising it once lets Android scale a GPU texture per
-          // frame instead of re-composing the whole view tree inside a clip
-          // whose corner radius is rebuilt on every frame. It is only ever
-          // scaled down, so the texture never has to invent detail.
-          renderToHardwareTextureAndroid
+          // Rasterize static rooms during the morph. SEND contains a ScrollView:
+          // keeping its full-screen content in one hardware texture makes Android
+          // recompose a large texture while scrolling, so let that room render
+          // normally to keep touch scrolling responsive.
+          renderToHardwareTextureAndroid={modelRoom !== "SEND"}
           style={[{ transformOrigin: "top left" }, modelContentStyle]}
         >
           {modelRoom === "SEND" ? (
@@ -220,6 +223,8 @@ export function DynamicIsland({
             <GetPaidSurface contentTopGap={12} />
           ) : modelRoom === "WITHDRAW" ? (
             <WithdrawSurface contentTopGap={12} />
+          ) : modelRoom === "ADD" ? (
+            <AddMoneySurface contentTopGap={12} />
           ) : (
             <ZenoCardSurface contentTopGap={12} onFrozenChange={setIsCardFrozen} />
           )}
@@ -312,6 +317,25 @@ export function DynamicIsland({
 
 /** First word muted, rest emphasised — the locked island typography. */
 function IslandTitle({ title, muted = false }: { title: string; muted?: boolean }) {
+  const language = useLanguageStore((state) => state.language);
+  const titleKeys: Record<string, FinancialTitleKey> = {
+    "Send Money": "sendMoney",
+    "Add Money": "addMoney",
+    "Withdraw Money": "withdrawMoney",
+    "Get Paid": "getPaid",
+    "Zeno Card": "zenoCard",
+  };
+  const titleKey = titleKeys[title];
+  if (titleKey) {
+    const [first, second] = getFinancialTitleSegments(titleKey, language);
+    return (
+      <>
+        <NativeText className={`font-semibold ${muted ? "text-white/40" : "text-white/45"}`}>{first} </NativeText>
+        <NativeText className={`font-bold ${muted ? "text-white/40" : "text-white"}`}>{second}</NativeText>
+      </>
+    );
+  }
+
   const [first, ...rest] = title.split(" ");
   return (
     <>

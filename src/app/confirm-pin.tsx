@@ -1,3 +1,4 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { PIN_LENGTH, PinPad } from "@/components/auth/PinPad";
 import { images } from "@/constants/images";
 import { useSecurityStore } from "@/store/security-store";
@@ -5,7 +6,7 @@ import { useUser } from "@clerk/clerk-expo";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**

@@ -1,419 +1,289 @@
-﻿import { useUser } from "@clerk/clerk-expo";
-import {
-  MicrophoneIcon,
-  PaperclipIcon,
-  SendUpIcon,
-  SparkleIcon,
-} from "@/components/ui/ProfileIcons";
+import { LocalizedText as Text, LocalizedTextInput as TextInput, showLocalizedAlert } from "@/components/ui/LocalizedText";
+import { SendUpIcon } from "@/components/ui/ProfileIcons";
 import { images } from "@/constants/images";
+import { postAuthenticated } from "@/lib/api";
+import { useLanguageStore } from "@/store/language-store";
+import { useAuth } from "@clerk/clerk-expo";
+import { StreamChat, type Channel, type Event, type LocalMessage, type MessageResponse } from "stream-chat";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle, Path, Rect } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 
-// ─── Inline Icons (small, chat-specific) ────────────────────────────────────
-
-function BackArrowIcon({ size = 20, color = "#071706" }: { size?: number; color?: string }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M19 12H5M12 5l-7 7 7 7"
-        stroke={color}
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
-function OnlineDot() {
-  return (
-    <Svg width={8} height={8} viewBox="0 0 8 8" fill="none">
-      <Circle cx="4" cy="4" r="4" fill="#22C55E" />
-    </Svg>
-  );
-}
-
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-type MessageRole = "agent" | "user";
-
-type ChatMessage = {
-  id: string;
-  role: MessageRole;
-  text: string;
-  timestamp: Date;
+type ConversationCredentials = {
+  apiKey: string;
+  token: string;
+  userId: string;
+  userName?: string;
+  channelId: string;
+  status: "ai" | "waiting" | "human";
 };
 
-// ─── Quick Reply Chips ────────────────────────────────────────────────────────
+type ChatLine = {
+  id: string;
+  text: string;
+  isCurrentUser: boolean;
+  isAssistant: boolean;
+  createdAt: Date;
+};
 
-const QUICK_REPLIES = [
-  "Vérifier mon identité",
-  "Recharger mon compte",
-  "Affichage de la devise du compte",
-  "Virements entrants",
-  "Virement sortant",
-  "Carte",
-  "Gestion des frais",
-  "Paiements – Remboursement – Contestation",
-  "Compte restreint ou suspendu",
-  "Demande de résiliation du compte",
-];
+const supportCredentialRequests = new Map<string, Promise<ConversationCredentials>>();
+const supportConnectionRequests = new Map<string, Promise<void>>();
+const supportChannelWatchRequests = new Map<string, Promise<void>>();
 
-// ─── Agent auto-replies ──────────────────────────────────────────────────────
+function loadSupportCredentials(userId: string, sessionToken: string, conversationId?: string) {
+  const requestKey = `${userId}:${conversationId ?? "primary"}`;
+  const pending = supportCredentialRequests.get(requestKey);
+  if (pending) return pending;
 
-function getAgentReply(userMessage: string): string {
-  const msg = userMessage.toLowerCase();
-  if (msg.includes("identité") || msg.includes("kyc") || msg.includes("vérif"))
-    return "Pour vérifier votre identité, allez dans Compte → Vérification. Vous aurez besoin d'une pièce d'identité valide et d'un selfie. Notre équipe validera votre dossier dans les 24 à 48 heures.";
-  if (msg.includes("recharge") || msg.includes("ajouter") || msg.includes("dépôt"))
-    return "Pour recharger votre compte, depuis Wallet Home appuyez sur « Add Money » → choisissez votre opérateur Mobile Money → entrez le montant → confirmez. Le crédit est instantané.";
-  if (msg.includes("devise") || msg.includes("currency"))
-    return "Votre portefeuille ZENO fonctionne en USD/EUR. Vous pouvez voir le montant équivalent en XOF dans les détails de chaque transaction.";
-  if (msg.includes("virement entrant") || msg.includes("reçu"))
-    return "Les virements entrants sont crédités instantanément. Si vous n'avez pas reçu un virement, vérifiez l'ID de transaction et contactez l'expéditeur.";
-  if (msg.includes("virement sortant") || msg.includes("envoi"))
-    return "Pour envoyer de l'argent : Wallet Home → Send Money → choisissez un utilisateur ZENO ou Mobile Money → montant → PIN → Confirmer.";
-  if (msg.includes("carte") && !msg.includes("probl"))
-    return "Votre carte ZENO virtuelle Visa est accessible depuis l'écran Wallet via le glisser vers le bas. Vous pouvez voir le numéro, la date d'expiration et le CVV de façon sécurisée.";
-  if (msg.includes("frais") || msg.includes("tarif") || msg.includes("commission"))
-    return "Les frais ZENO varient selon le type de transaction. Les dépôts Mobile Money sont gratuits. Les retraits et transferts internationaux peuvent être soumis à des frais. Consultez Aide → Frais et tarification.";
-  if (msg.includes("paiement") || msg.includes("remboursement") || msg.includes("contestation"))
-    return "Pour contester une transaction, accédez aux Détails de la transaction → Signaler un problème. Notre équipe traitera votre demande dans les 2 à 5 jours ouvrables.";
-  if (msg.includes("restreint") || msg.includes("suspendu") || msg.includes("bloqué"))
-    return "Si votre compte est restreint, c'est souvent lié à une vérification d'identité incomplète ou à une activité inhabituelle. Répondez ici avec votre ID de compte pour accélérer le traitement.";
-  if (msg.includes("résiliation") || msg.includes("fermer") || msg.includes("supprimer"))
-    return "Pour demander la résiliation de votre compte, veuillez envoyer une demande écrite à support@zeno.app depuis votre adresse e-mail enregistrée. Notre équipe vous guidera dans le processus.";
-  if (msg.includes("problème") || msg.includes("transaction") || msg.includes("id:"))
-    return "Merci de nous avoir signalé ce problème. Notre équipe de support a reçu votre signalement et vous répondra dans les 24 à 48 heures. Pour accélérer le traitement, assurez-vous d'inclure l'ID de transaction concernée.";
-  return "Merci pour votre message. Un agent ZENO va examiner votre demande et vous répondra dans les plus brefs délais. Vous pouvez également nous contacter à support@zeno.app.";
+  const request = postAuthenticated<ConversationCredentials>("/api/support/conversation", sessionToken, { conversationId })
+    .then((response) => {
+      if (!response.ok) throw new Error(response.error);
+      return response.data;
+    })
+    .finally(() => {
+      if (supportCredentialRequests.get(requestKey) === request) supportCredentialRequests.delete(requestKey);
+    });
+  supportCredentialRequests.set(requestKey, request);
+  return request;
 }
 
-// ─── Typing indicator dots ───────────────────────────────────────────────────
+async function connectSupportUser(client: StreamChat, info: ConversationCredentials) {
+  const connectionKey = `${info.apiKey}:${info.userId}`;
+  let pending = supportConnectionRequests.get(connectionKey);
+  if (pending) return pending;
+  if (client.userID === info.userId) return;
+  if (client.userID) await client.disconnectUser();
 
-function TypingDots() {
-  return (
-    <View className="flex-row items-center gap-x-1.5 py-1">
-      {[0, 1, 2].map((i) => (
-        <Svg key={i} width={8} height={8} viewBox="0 0 8 8" fill="none">
-          <Circle cx="4" cy="4" r="3.5" fill="#9CA3AF" />
-        </Svg>
-      ))}
-    </View>
-  );
+  pending = client.connectUser(
+    { id: info.userId, ...(info.userName ? { name: info.userName } : {}) },
+    info.token,
+  ).then(() => undefined).finally(() => {
+    if (supportConnectionRequests.get(connectionKey) === pending) supportConnectionRequests.delete(connectionKey);
+  });
+  supportConnectionRequests.set(connectionKey, pending);
+  await pending;
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+async function watchSupportChannel(client: StreamChat, info: ConversationCredentials) {
+  const channel = client.channel("messaging", info.channelId);
+  const watchKey = `${info.apiKey}:${info.userId}:${info.channelId}`;
+  let pending = supportChannelWatchRequests.get(watchKey);
+  if (!pending) {
+    pending = channel.watch().then(() => undefined).finally(() => {
+      if (supportChannelWatchRequests.get(watchKey) === pending) supportChannelWatchRequests.delete(watchKey);
+    });
+    supportChannelWatchRequests.set(watchKey, pending);
+  }
+  await pending;
+  return channel;
+}
 
-/**
- * Support Chat Screen
- *
- * AI-agent-style chat interface for ZENO support.
- * All icons are premium SVG — zero emoji in the UI chrome.
- *
- * Pre-fill: if `prefillMessage` is passed as a route param (e.g. from
- * "Signaler un problème" in transaction details), it is auto-sent as the
- * user's first message.
- */
+function BackArrowIcon({ size = 20, color = "#071706" }: { size?: number; color?: string }) {
+  return <Svg width={size} height={size} viewBox="0 0 24 24" fill="none"><Path d="M19 12H5M12 5l-7 7 7 7" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></Svg>;
+}
+
+function toChatLine(message: MessageResponse | LocalMessage, userId: string): ChatLine | null {
+  if (!message.id || !message.text || !message.created_at) return null;
+  return {
+    id: message.id,
+    text: message.text,
+    isCurrentUser: message.user?.id === userId,
+    isAssistant: message.user?.id === "zeno_gemini_assistant",
+    createdAt: new Date(message.created_at),
+  };
+}
+
 export default function SupportChatScreen() {
   const insets = useSafeAreaInsets();
+  const language = useLanguageStore((state) => state.language);
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { prefillMessage, conversationId: requestedConversationId } = useLocalSearchParams<{ prefillMessage?: string; conversationId?: string }>();
   const scrollRef = useRef<ScrollView>(null);
-
-  const { prefillMessage } = useLocalSearchParams<{ prefillMessage?: string }>();
-
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+  const channelRef = useRef<Channel | null>(null);
+  const [lines, setLines] = useState<ChatLine[]>([]);
   const [inputText, setInputText] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "agent-welcome",
-      role: "agent",
-      text: "Bonjour, comment pouvons-nous t'assister aujourd'hui ?",
-      timestamp: new Date(),
-    },
-  ]);
-  const [isAgentTyping, setIsAgentTyping] = useState(false);
-  const [quickRepliesSent, setQuickRepliesSent] = useState(false);
+  const [credentials, setCredentials] = useState<ConversationCredentials | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
+  const [requestingAgent, setRequestingAgent] = useState(false);
+  const initialMessageSent = useRef(false);
+
+  const connectConversation = useCallback(async () => {
+    if (!isLoaded) return;
+    if (!isSignedIn || !userId) {
+      setError("Connecte-toi pour contacter l’assistance.");
+      setStatus("error");
+      return;
+    }
+    setStatus("loading");
+    setError("");
+    try {
+      const sessionToken = await getTokenRef.current();
+      if (!sessionToken) throw new Error("Connecte-toi pour contacter l’assistance.");
+      const info = await loadSupportCredentials(userId, sessionToken, requestedConversationId);
+      const client = StreamChat.getInstance(info.apiKey);
+      await connectSupportUser(client, info);
+      const channel = await watchSupportChannel(client, info);
+      channelRef.current = channel;
+      setCredentials(info);
+      setLines(channel.state.messages.map((message) => toChatLine(message, info.userId)).filter((line): line is ChatLine => Boolean(line)));
+      setStatus("ready");
+
+      const subscription = channel.on("message.new", (event: Event) => {
+        const line = event.message ? toChatLine(event.message, info.userId) : null;
+        if (line) setLines((current) => current.some((item) => item.id === line.id) ? current : [...current, line]);
+      });
+      const statusSubscription = channel.on("channel.updated", (event: Event) => {
+        const updated = event.channel as Record<string, unknown> | undefined;
+        if (updated?.support_status === "human" || updated?.support_status === "waiting") {
+          setCredentials((current) => current ? { ...current, status: updated.support_status as "waiting" | "human" } : current);
+        }
+      });
+      return () => {
+        subscription.unsubscribe();
+        statusSubscription.unsubscribe();
+      };
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Impossible de joindre l’assistance.");
+      setStatus("error");
+    }
+  }, [isLoaded, isSignedIn, userId, requestedConversationId]);
 
   useEffect(() => {
-    if (prefillMessage && prefillMessage.trim().length > 0) {
-      setTimeout(() => sendMessage(prefillMessage.trim()), 700);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const sendMessage = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      text: trimmed,
-      timestamp: new Date(),
+    let cleanup: (() => void) | undefined;
+    let active = true;
+    void connectConversation().then((dispose) => {
+      if (active) cleanup = dispose;
+      else dispose?.();
+    });
+    return () => {
+      active = false;
+      cleanup?.();
     };
+  }, [connectConversation]);
 
-    setMessages((prev) => [...prev, userMsg]);
+  useEffect(() => {
+    if (status !== "ready" || initialMessageSent.current || !prefillMessage?.trim()) return;
+    initialMessageSent.current = true;
+    void sendMessage(prefillMessage.trim());
+    // A route parameter is intentionally sent once after the real channel is ready.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, prefillMessage]);
+
+  const sendMessage = useCallback(async (value: string) => {
+    const text = value.trim();
+    const channel = channelRef.current;
+    if (!text || !channel || sending) return;
+    setSending(true);
     setInputText("");
-    setQuickRepliesSent(true);
-    setIsAgentTyping(true);
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    let delivered = false;
+    try {
+      const sent = await channel.sendMessage({ text });
+      delivered = true;
+      if (credentials?.status === "ai") {
+        const sessionToken = await getTokenRef.current();
+        if (!sessionToken) throw new Error("Session expirée. Reconnecte-toi.");
+        const response = await postAuthenticated<{ answered?: boolean; handedOff?: boolean }>("/api/support/assistant", sessionToken, { channelId: credentials.channelId, messageId: sent.message.id });
+        if (!response.ok) throw new Error(response.error);
+      }
+    } catch {
+      if (!delivered) {
+        setInputText(text);
+        showLocalizedAlert("Message non envoyé", "Vérifie ta connexion puis réessaie.");
+      } else {
+        showLocalizedAlert("Assistant indisponible", "Ton message est envoyé. Tu peux demander à parler à un agent.");
+      }
+    } finally {
+      setSending(false);
+    }
+  }, [credentials, sending]);
 
-    const delay = 1500 + Math.random() * 1000;
-    setTimeout(() => {
-      const reply: ChatMessage = {
-        id: `agent-${Date.now()}`,
-        role: "agent",
-        text: getAgentReply(trimmed),
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, reply]);
-      setIsAgentTyping(false);
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-    }, delay);
-  };
+  const requestHumanAgent = useCallback(async () => {
+    const sessionToken = await getTokenRef.current();
+    if (!sessionToken || !credentials) return;
+    setRequestingAgent(true);
+    try {
+      const channel = channelRef.current;
+      if (channel) await channel.sendMessage({ text: language === "fr" ? "Je souhaite parler à un agent." : "I’d like to speak with a support agent." });
+      const response = await postAuthenticated<{ status: "waiting" }>("/api/support/handoff", sessionToken, { channelId: credentials.channelId });
+      if (!response.ok) throw new Error(response.error);
+      setCredentials((current) => current ? { ...current, status: "waiting" } : current);
+    } catch (cause) {
+      showLocalizedAlert("Demande non envoyée", cause instanceof Error ? cause.message : "Réessaie dans un instant.");
+    } finally {
+      setRequestingAgent(false);
+    }
+  }, [credentials, language]);
 
-  const handleSend = () => sendMessage(inputText);
-  const handleQuickReply = (chip: string) => sendMessage(chip);
-  const formatTime = (date: Date) =>
-    date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-
-  const canSend = inputText.trim().length > 0;
+  const formatTime = (date: Date) => date.toLocaleTimeString(language === "fr" ? "fr-FR" : "en-US", { hour: "2-digit", minute: "2-digit" });
+  const suggestedMessages = language === "fr"
+    ? ["Vérifier mon identité", "Ajouter de l’argent", "Afficher la devise du compte", "Envoyer de l’argent", "Faire un retrait", "Carte ZENO", "Créer un lien de paiement", "Demander de l’argent ou un QR", "Problème de paiement ou remboursement", "Compte restreint", "Parler à un agent"]
+    : ["Verify my identity", "Add money", "Account currency", "Send money", "Withdraw money", "ZENO Card", "Create a payment link", "Request money or a QR", "Payment or refund problem", "Restricted account", "Talk to an agent"];
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-[#F4FAFF]"
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={0}
-      style={{ paddingBottom: insets.bottom }}
-    >
-      {/* ── Header ──────────────────────────────────────────── */}
-      <View
-        className="bg-white border-b border-gray-100 px-4 flex-row items-center gap-x-3"
-        style={{ paddingTop: insets.top + 8, paddingBottom: 12 }}
-      >
-        {/* Back */}
-        <Pressable
-          className="h-[44px] w-[44px] items-center justify-center rounded-[14px] bg-[#F4FAFF]"
-          onPress={() => router.back()}
-          hitSlop={12}
-          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
-        >
-          <Image
-            source={images.back}
-            style={{ width: 50, height: 50 }}
-            contentFit="contain"
-          />
+    <KeyboardAvoidingView className="flex-1 bg-[#F4FAFF]" behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0} style={{ paddingBottom: insets.bottom }}>
+      <View className="flex-row items-center gap-x-3 border-b border-gray-100 bg-white px-4" style={{ paddingTop: insets.top + 8, paddingBottom: 12 }}>
+        <Pressable className="h-11 w-11 items-center justify-center rounded-[14px] bg-[#F4FAFF]" onPress={() => router.back()} hitSlop={12}>
+          <Image source={images.back} style={{ width: 50, height: 50 }} contentFit="contain" />
         </Pressable>
-
-        {/* Agent avatar (dark circle with ZENO logo) */}
-        <View className="h-10 w-10 items-center justify-center rounded-full bg-[#0A1712] shadow-sm">
-          <Image
-            source={images.logoWhite}
-            style={{ width: 22, height: 14 }}
-            contentFit="contain"
-          />
+        <View className="h-10 w-10 items-center justify-center rounded-full bg-[#0A1712]">
+          <Image source={images.logoWhite} style={{ width: 22, height: 14 }} contentFit="contain" />
         </View>
-
         <View className="flex-1">
-          <Text
-            allowFontScaling={false}
-            className="text-[16px] font-bold text-zeno-text-primary"
-          >
-            ZENO
-          </Text>
-          <View className="flex-row items-center gap-x-2 mt-0.5">
-            <OnlineDot />
-            <Text
-              allowFontScaling={false}
-              className="text-[12px] font-medium text-zeno-text-secondary"
-            >
-              AI Agent · En ligne
-            </Text>
+          <Text allowFontScaling={false} className="text-[16px] font-bold text-zeno-text-primary">ZENO</Text>
+          <Text allowFontScaling={false} className="mt-0.5 text-[12px] font-medium text-zeno-text-secondary">{credentials?.status === "human" ? "Un agent vous répond" : credentials?.status === "waiting" ? "En attente de l’équipe" : "Assistant ZENO"}</Text>
+        </View>
+      </View>
+
+      {status === "ready" && lines.length === 0 ? <View className="items-center border-b border-gray-100 bg-white py-3">
+        <Text allowFontScaling={false} className="text-[14px] font-medium text-zeno-text-secondary">{language === "fr" ? "En quoi puis-je t’aider ? 💡" : "How can I help? 💡"}</Text>
+      </View> : null}
+
+      <ScrollView ref={scrollRef} className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: 16, flexGrow: 1 }} onContentSizeChange={() => { if (lines.length > 0) scrollRef.current?.scrollToEnd({ animated: true }); }}>
+        {status === "loading" && <View className="flex-1 items-center justify-center"><ActivityIndicator color="#0A1712" /><Text className="mt-3 text-[14px] text-zeno-text-secondary">Connexion à l’assistance…</Text></View>}
+        {status === "error" && <View className="flex-1 items-center justify-center px-5"><Text className="text-center text-[15px] font-medium text-zeno-text-primary">{error}</Text><Pressable onPress={() => void connectConversation()} className="mt-4 rounded-full bg-[#0A1712] px-6 py-3"><Text className="font-semibold text-white">Réessayer</Text></Pressable></View>}
+        {status === "ready" && lines.length === 0 && <View className="items-start px-2 pt-4">
+          <View className="mb-2 flex-row items-center gap-x-2">
+            <View className="h-6 w-6 items-center justify-center rounded-full bg-[#0A1712]"><Image source={images.logoWhite} style={{ width: 13, height: 8 }} contentFit="contain" /></View>
+            <Text allowFontScaling={false} className="text-[13px] font-semibold text-zeno-text-primary">{language === "fr" ? "Assistant ZENO" : "ZENO Assistant"}</Text>
           </View>
-        </View>
-
-        {/* Sparkle badge (AI indicator) */}
-        <View className="h-8 w-8 items-center justify-center rounded-full bg-[#0A1712]">
-          <SparkleIcon size={16} color="#C7FF4A" />
-        </View>
-      </View>
-
-      {/* ── Hint bar ─────────────────────────────────────────── */}
-      <View className="items-center py-2.5 border-b border-gray-100 bg-white">
-        <Text
-          allowFontScaling={false}
-          className="text-[13px] font-medium text-zeno-text-secondary"
-        >
-          En quoi pouvons-nous t'assister ?
-        </Text>
-      </View>
-
-      {/* ── Messages ─────────────────────────────────────────── */}
-      <ScrollView
-        ref={scrollRef}
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: 16 }}
-        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
-      >
-        {messages.map((msg) => (
-          <View
-            key={msg.id}
-            className={`mb-3 ${msg.role === "user" ? "items-end" : "items-start"}`}
-          >
-            {/* Agent label */}
-            {msg.role === "agent" && (
-              <View className="flex-row items-center gap-x-2 mb-1.5 ml-1">
-                <View className="h-6 w-6 items-center justify-center rounded-full bg-[#0A1712]">
-                  <Image
-                    source={images.logoWhite}
-                    style={{ width: 13, height: 8 }}
-                    contentFit="contain"
-                  />
-                </View>
-                <Text
-                  allowFontScaling={false}
-                  className="text-[12px] font-semibold text-zeno-text-secondary"
-                >
-                  ZENO · AI Agent
-                </Text>
-              </View>
-            )}
-
-            {/* Bubble */}
-            <View
-              className={`max-w-[80%] rounded-[20px] px-4 py-3 ${
-                msg.role === "user"
-                  ? "bg-[#0A1712] rounded-tr-[6px]"
-                  : "bg-white rounded-tl-[6px] border border-gray-100/80 shadow-low"
-              }`}
-            >
-              <Text
-                allowFontScaling={false}
-                className={`text-[14px] font-medium leading-[22px] ${
-                  msg.role === "user"
-                    ? "text-white"
-                    : "text-zeno-text-primary"
-                }`}
-              >
-                {msg.text}
-              </Text>
+          <View className="max-w-[88%] rounded-[20px] rounded-tl-[6px] border border-gray-100 bg-white px-4 py-3 shadow-low">
+            <Text allowFontScaling={false} className="text-[14px] font-medium leading-[22px] text-zeno-text-primary">{language === "fr" ? "Bonjour 👋 Comment puis-je t’aider aujourd’hui ?" : "Hi 👋 How can I help you today?"}</Text>
+          </View>
+          <View className="mt-5 w-full items-end gap-y-2">
+            {suggestedMessages.map((suggestion) => <Pressable key={suggestion} disabled={sending} onPress={() => void sendMessage(suggestion)} className="max-w-[94%] self-end rounded-full border border-gray-200 bg-white px-4 py-2.5 shadow-low" style={({ pressed }) => ({ opacity: pressed || sending ? 0.6 : 1 })}>
+              <Text allowFontScaling={false} className="text-[14px] font-medium text-zeno-text-primary">{suggestion}</Text>
+            </Pressable>)}
+          </View>
+        </View>}
+        {status === "ready" && lines.map((line) => (
+          <View key={line.id} className={`mb-3 ${line.isCurrentUser ? "items-end" : "items-start"}`}>
+            {!line.isCurrentUser && <Text className="mb-1.5 ml-1 text-[12px] font-semibold text-zeno-text-secondary">{line.isAssistant ? (language === "fr" ? "Assistant ZENO" : "ZENO Assistant") : (language === "fr" ? "Équipe ZENO" : "ZENO Support")}</Text>}
+            <View className={`max-w-[82%] rounded-[20px] px-4 py-3 ${line.isCurrentUser ? "rounded-tr-[6px] bg-[#0A1712]" : "rounded-tl-[6px] border border-gray-100 bg-white shadow-low"}`}>
+              <Text allowFontScaling={false} className={`text-[14px] font-medium leading-[22px] ${line.isCurrentUser ? "text-white" : "text-zeno-text-primary"}`}>{line.text}</Text>
             </View>
-
-            {/* Timestamp */}
-            <Text
-              allowFontScaling={false}
-              className="mt-1 mx-1 text-[11px] font-medium text-gray-400"
-            >
-              {formatTime(msg.timestamp)}
-            </Text>
+            <Text className="mx-1 mt-1 text-[11px] font-medium text-gray-400">{formatTime(line.createdAt)}</Text>
           </View>
         ))}
-
-        {/* Agent typing indicator */}
-        {isAgentTyping && (
-          <View className="items-start mb-3">
-            <View className="flex-row items-center gap-x-2 mb-1.5 ml-1">
-              <View className="h-6 w-6 items-center justify-center rounded-full bg-[#0A1712]">
-                <Image
-                  source={images.logoWhite}
-                  style={{ width: 13, height: 8 }}
-                  contentFit="contain"
-                />
-              </View>
-              <Text
-                allowFontScaling={false}
-                className="text-[12px] font-semibold text-zeno-text-secondary"
-              >
-                ZENO · AI Agent
-              </Text>
-            </View>
-            <View className="bg-white rounded-[20px] rounded-tl-[6px] px-5 py-3.5 border border-gray-100 shadow-low">
-              <TypingDots />
-            </View>
-          </View>
-        )}
-
-        {/* Quick Reply Chips — shown only before first user message */}
-        {!quickRepliesSent && (
-          <View className="mt-2 mb-1 flex-row flex-wrap gap-2 justify-end">
-            {QUICK_REPLIES.map((chip) => (
-              <Pressable
-                key={chip}
-                onPress={() => handleQuickReply(chip)}
-                className="rounded-full border border-gray-200 bg-white px-4 py-2 shadow-low"
-                style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}
-              >
-                <Text
-                  allowFontScaling={false}
-                  className="text-[13px] font-semibold text-zeno-text-primary"
-                >
-                  {chip}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
       </ScrollView>
 
-      {/* ── Input Bar ────────────────────────────────────────── */}
-      <View className="border-t border-gray-100 bg-white px-4 pt-3 pb-3">
-        <View className="flex-row items-end rounded-[24px] bg-[#F4FAFF] border border-gray-200 pl-4 pr-2 py-2 gap-x-2">
-          {/* Attachment */}
-          <Pressable
-            hitSlop={8}
-            className="mb-1"
-            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-          >
-            <PaperclipIcon size={20} color="#9CA3AF" />
+      <View className="border-t border-gray-100 bg-white px-4 pb-3 pt-3">
+        {credentials?.status !== "human" && credentials?.status !== "waiting" && <Pressable disabled={requestingAgent || status !== "ready"} onPress={() => void requestHumanAgent()} className="mb-3 self-start rounded-full border border-gray-200 bg-[#F4FAFF] px-4 py-2.5" style={({ pressed }) => ({ opacity: pressed || requestingAgent ? 0.6 : 1 })}>
+          <Text className="text-[13px] font-semibold text-zeno-text-primary">{requestingAgent ? (language === "fr" ? "Demande en cours…" : "Sending request…") : (language === "fr" ? "Parler à un agent" : "Talk to an agent")}</Text>
+        </Pressable>}
+        <View className="flex-row items-end gap-x-2 rounded-[24px] border border-gray-200 bg-[#F4FAFF] py-2 pl-4 pr-2">
+          <TextInput value={inputText} onChangeText={setInputText} placeholder={language === "fr" ? "Pose une question…" : "Ask a question…"} placeholderTextColor="#9CA3AF" multiline className="min-h-[36px] max-h-[100px] flex-1 text-[15px] font-medium leading-[22px] text-zeno-text-primary" allowFontScaling={false} returnKeyType="send" onSubmitEditing={() => void sendMessage(inputText)} blurOnSubmit={false} editable={status === "ready" && !sending} />
+          <Pressable disabled={!inputText.trim() || sending || status !== "ready"} onPress={() => void sendMessage(inputText)} className="mb-0.5 h-9 w-9 items-center justify-center rounded-full bg-[#0A1712]" style={({ pressed }) => ({ opacity: pressed || sending ? 0.6 : 1 })}>
+            {sending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <SendUpIcon size={16} color="#FFFFFF" />}
           </Pressable>
-
-          {/* Text input */}
-          <TextInput
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="Posez une question..."
-            placeholderTextColor="#9CA3AF"
-            multiline
-            className="flex-1 text-[15px] font-medium text-zeno-text-primary leading-[22px] max-h-[100px] min-h-[36px]"
-            allowFontScaling={false}
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
-            blurOnSubmit={false}
-          />
-
-          {/* Microphone (when no text) or Send (when text) */}
-          {canSend ? (
-            <Pressable
-              onPress={handleSend}
-              className="h-9 w-9 items-center justify-center rounded-full bg-[#0A1712] mb-0.5"
-              style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}
-            >
-              <SendUpIcon size={16} color="#FFFFFF" />
-            </Pressable>
-          ) : (
-            <Pressable
-              hitSlop={8}
-              className="h-9 w-9 items-center justify-center mb-0.5"
-              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-            >
-              <MicrophoneIcon size={20} color="#9CA3AF" />
-            </Pressable>
-          )}
         </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
-
-

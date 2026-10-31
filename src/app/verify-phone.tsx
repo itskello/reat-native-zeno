@@ -10,6 +10,7 @@ export default function VerifyPhoneScreen() {
   const { signUp } = useSignUp();
   const { user, isSignedIn } = useUser();
   const phoneCountry = useOnboardingStore((state) => state.phoneCountry);
+  const residencyCountry = useOnboardingStore((state) => state.residencyCountry);
   const phoneNumber = useOnboardingStore((state) => state.phoneNumber);
   const signUpMethod = useOnboardingStore((state) => state.signUpMethod);
   const { verifyCode, resendCode, isVerifying, error, setError } =
@@ -33,11 +34,17 @@ export default function VerifyPhoneScreen() {
               ...user.unsafeMetadata,
               phoneNumber: e164,
               phoneVerified: true,
+              countryId: residencyCountry?.id ?? phoneCountry.id,
             },
           });
         } else if (signUp) {
           await signUp.update({
-            unsafeMetadata: { phoneNumber: e164, phoneVerified: true },
+            unsafeMetadata: {
+              ...signUp.unsafeMetadata,
+              phoneNumber: e164,
+              phoneVerified: true,
+              countryId: residencyCountry?.id ?? phoneCountry.id,
+            },
           });
         }
       } catch {
@@ -71,7 +78,7 @@ export default function VerifyPhoneScreen() {
     } else {
       router.replace("/verify-email");
     }
-  }, [signUp, user, isSignedIn, phoneCountry, phoneNumber, signUpMethod]);
+  }, [signUp, user, isSignedIn, phoneCountry, phoneNumber, residencyCountry, signUpMethod]);
 
   return (
     <VerifyCodeScreen

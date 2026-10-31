@@ -1,43 +1,43 @@
+import { showLocalizedAlert } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { images } from "@/constants/images";
 import { useAppStore } from "@/store/app-store";
+import { useWalletStore } from "@/store/wallet-store";
 import type { CurrencyCode } from "@/types/content";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type CurrencyOption = {
-  code: CurrencyCode | "USD" | "EUR" | "GBP";
+  code: CurrencyCode;
   name: string;
   subtext: string;
   symbol: string;
 };
 
 const CURRENCIES: CurrencyOption[] = [
-  { code: "XOF", name: "FCFA (XOF)", subtext: "Franc CFA UEMOA", symbol: "FCFA" },
   { code: "USD", name: "USD ($)", subtext: "Dollar Américain", symbol: "$" },
   { code: "EUR", name: "EUR (€)", subtext: "Euro", symbol: "€" },
-  { code: "GBP", name: "GBP (£)", subtext: "Livre Sterling", symbol: "£" },
+  { code: "XOF", name: "FCFA (XOF)", subtext: "Franc CFA UEMOA", symbol: "FCFA" },
 ];
 
 export default function CurrencyScreen() {
   const insets = useSafeAreaInsets();
   const selectedCurrency = useAppStore((s) => s.selectedCurrency);
-  const setSelectedCountry = useAppStore((s) => s.setSelectedCountry);
+  const setSelectedCurrency = useAppStore((s) => s.setSelectedCurrency);
+  const setEmptyWalletCurrency = useWalletStore((s) => s.setEmptyWalletCurrency);
 
   const handleSelect = (item: CurrencyOption) => {
-    if (item.code === "XOF") {
-      setSelectedCountry("cote-divoire");
-      Alert.alert(
-        "Devise mise à jour",
-        `Devise principale réglée sur ${item.name}`
+    if (!setEmptyWalletCurrency(item.code)) {
+      showLocalizedAlert(
+        "Devise inchangée",
+        "Le solde du wallet doit être à zéro pour changer de devise. Aucun montant ne sera converti automatiquement."
       );
-    } else {
-      Alert.alert(
-        "Devise secondaire",
-        `${item.name} sera utilisée pour la conversion d'affichage.`
-      );
+      return;
     }
+    setSelectedCurrency(item.code);
+    showLocalizedAlert("Devise mise à jour", `Devise principale réglée sur ${item.name}`);
   };
 
   return (
@@ -77,13 +77,13 @@ export default function CurrencyScreen() {
               allowFontScaling={false}
               className="font-bold text-[22px] text-zeno-text-primary"
             >
-              Devise d'affichage
+              Devise principale
             </Text>
             <Text
               allowFontScaling={false}
               className="mt-1 font-medium text-[15px] text-zeno-text-secondary"
             >
-              Sélectionnez la devise pour l'affichage de vos transactions.
+              USD est la devise principale de ZENO. Vous pouvez choisir USD, EUR ou XOF pour votre wallet.
             </Text>
           </View>
 

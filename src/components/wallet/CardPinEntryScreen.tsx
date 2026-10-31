@@ -1,3 +1,4 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 /**
  * CardPinEntryScreen — Full-screen lime-green PIN entry for ZENO Card
  *
@@ -11,7 +12,7 @@
 import { images } from "@/constants/images";
 import { Image } from "expo-image";
 import { ZenoCardLogo } from "@/components/wallet/ZenoCardLogo";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const LIME = "#B9E057"; // Exact Figma color

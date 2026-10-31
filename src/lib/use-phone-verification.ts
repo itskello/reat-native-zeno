@@ -1,6 +1,7 @@
 import { requestPhoneOtp, verifyPhoneOtp } from "@/lib/api";
 import { toE164 } from "@/lib/phone";
 import { useOnboardingStore } from "@/store/onboarding-store";
+import { useLanguageStore } from "@/store/language-store";
 import { useCallback, useState } from "react";
 
 /**
@@ -15,6 +16,7 @@ import { useCallback, useState } from "react";
  * that we replay at verify time.
  */
 export function usePhoneVerification() {
+  const language = useLanguageStore((state) => state.language);
   const phoneCountry = useOnboardingStore((state) => state.phoneCountry);
   const phoneNumber = useOnboardingStore((state) => state.phoneNumber);
   const token = useOnboardingStore((state) => state.phoneOtpToken);
@@ -57,7 +59,7 @@ export function usePhoneVerification() {
 
     setError(null);
 
-    const result = await requestPhoneOtp(e164);
+    const result = await requestPhoneOtp(e164, language);
 
     if (result.ok) {
       setPhoneOtpToken(result.data.token);
@@ -66,7 +68,7 @@ export function usePhoneVerification() {
 
     setError(result.error);
     return false;
-  }, [e164, setPhoneOtpToken]);
+  }, [e164, language, setPhoneOtpToken]);
 
   return { verifyCode, resendCode, isVerifying, error, setError };
 }

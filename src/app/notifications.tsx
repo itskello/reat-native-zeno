@@ -1,3 +1,5 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
+import { useLanguageStore } from "@/store/language-store";
 import { images } from "@/constants/images";
 import { NotificationsSkeleton } from "@/components/ui/Skeleton";
 import { ZenoLogoIcon } from "@/components/ui/ZenoLogoIcon";
@@ -12,9 +14,8 @@ import { useCallback, useEffect } from "react";
 import {
   Pressable,
   ScrollView,
-  Text,
-  View,
-} from "react-native";
+
+  View} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**
@@ -30,6 +31,12 @@ export default function NotificationsScreen() {
   const markAllRead = useNotificationStore((s) => s.markAllRead);
   const markRead = useNotificationStore((s) => s.markRead);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const handlePress = useCallback(
+    (notif: AppNotification) => {
+      markRead(notif.id);
+    },
+    [markRead]
+  );
 
   const isLoading = useInitialLoading(300);
 
@@ -48,16 +55,6 @@ export default function NotificationsScreen() {
       </View>
     );
   }
-
-  const handlePress = useCallback(
-    (notif: AppNotification) => {
-      markRead(notif.id);
-    },
-    [markRead]
-  );
-
-  const unread = notifications.filter((n) => !n.read);
-  const earlier = notifications.filter((n) => n.read);
 
   return (
     <View
@@ -127,7 +124,7 @@ export default function NotificationsScreen() {
                 allowFontScaling={false}
                 className="mt-2 text-[14px] font-medium text-zeno-text-secondary text-center px-6"
               >
-                Vous n'avez aucune notification pour le moment.
+                Vous n&apos;avez aucune notification pour le moment.
               </Text>
             </View>
           )}
@@ -158,6 +155,12 @@ function NotificationRow({
   onPress: (n: AppNotification) => void;
   isLast: boolean;
 }) {
+  const language = useLanguageStore((state) => state.language);
+  const timeLabel = new Intl.DateTimeFormat(language === "fr" ? "fr-FR" : "en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(notification.createdAt));
+
   return (
     <Pressable
       onPress={() => onPress(notification)}
@@ -187,7 +190,7 @@ function NotificationRow({
             allowFontScaling={false}
             className="mt-2 text-[12px] font-medium text-zeno-text-secondary"
           >
-            {notification.timeLabel}
+            {timeLabel}
           </Text>
         </View>
       </View>

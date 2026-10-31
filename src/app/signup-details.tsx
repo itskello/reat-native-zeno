@@ -1,3 +1,5 @@
+import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { Chevron } from "@/components/ui/Chevron";
 import { CountrySheet } from "@/components/ui/CountrySheet";
 import { EyeIcon } from "@/components/ui/EyeIcon";
@@ -19,10 +21,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+  View} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -97,6 +96,7 @@ export default function CreateAccountScreen() {
       phoneNumber,
       password,
       country: phoneCountry,
+      residencyCountryId: residencyCountry?.id ?? phoneCountry.id,
     });
 
     if (started) {

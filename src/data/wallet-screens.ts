@@ -86,7 +86,7 @@ export const WALLET_SCREENS: Record<WalletScreen, WalletScreenConfig> = {
     title: "Add Money",
     shellColor: colors.zenoSky,
     origin: "below",
-    host: "surface",
+    host: "island",
     showIsland: true,
   },
   WITHDRAW: {

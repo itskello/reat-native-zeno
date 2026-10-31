@@ -1,6 +1,7 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function SplashScreen() {

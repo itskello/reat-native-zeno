@@ -1,3 +1,4 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { FloatingGlassNavBar } from "@/components/ui/FloatingGlassNavBar";
 import { ProfileSkeleton } from "@/components/ui/Skeleton";
 import { DeleteAccountModal } from "@/components/account/DeleteAccountModal";
@@ -10,7 +11,6 @@ import {
     CurrencyIcon,
     GlobeIcon,
     InfoIcon,
-    MoonIcon,
     SecurityLinkIcon,
     SecurityWalletIcon,
     ShieldOutlineIcon,
@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/ProfileIcons";
 import { images } from "@/constants/images";
 import { useAppStore } from "@/store/app-store";
+import { useLanguageStore } from "@/store/language-store";
+import type { CountryId } from "@/types/content";
 import { useUser } from "@clerk/clerk-expo";
 import { Image } from "expo-image";
 import { router } from "expo-router";
@@ -26,9 +28,8 @@ import { memo, useCallback, useState } from "react";
 import {
     Pressable,
     ScrollView,
-    Text,
-    View,
-} from "react-native";
+
+    View} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ProfileScreen() {
@@ -36,13 +37,26 @@ export default function ProfileScreen() {
   const { user, isLoaded } = useUser();
 
   const selectedCurrency = useAppStore((s) => s.selectedCurrency);
+  const selectedLanguage = useLanguageStore((s) => s.language);
 
   // Modals visibility state
   const [isEditProfileVisible, setIsEditProfileVisible] = useState(false);
   const [isKycVisible, setIsKycVisible] = useState(false);
-  const [kycStatus, setKycStatus] = useState<"verified" | "pending" | "unverified">(
-    "verified"
-  );
+  const [submittedKycPending, setSubmittedKycPending] = useState(false);
+  const savedKycStatus = user?.publicMetadata?.kycStatus;
+  const kycStatus: "verified" | "pending" | "unverified" = submittedKycPending
+    ? "pending"
+    : savedKycStatus === "verified" || savedKycStatus === "pending"
+      ? savedKycStatus
+      : "unverified";
+  const rawCountryId = user?.publicMetadata?.countryId ?? user?.unsafeMetadata?.countryId;
+  const kycCountryId: CountryId = rawCountryId === "cote-divoire" || rawCountryId === "togo"
+    ? rawCountryId
+    : rawCountryId === "benin"
+      ? "benin"
+      : user?.phoneNumbers?.[0]?.phoneNumber.startsWith("+225")
+        ? "cote-divoire"
+        : "benin";
   const [isDeleteAccountVisible, setIsDeleteAccountVisible] = useState(false);
   const [isLogoutVisible, setIsLogoutVisible] = useState(false);
 
@@ -58,10 +72,8 @@ export default function ProfileScreen() {
 
   const goLanguage = useCallback(() => router.push("/settings/language"), []);
   const goCurrency = useCallback(() => router.push("/settings/currency"), []);
-  const goDarkMode = useCallback(() => router.push("/settings/dark-mode"), []);
   const goNotifications = useCallback(() => router.push("/settings/notifications"), []);
   const goSecurity = useCallback(() => router.push("/settings/security"), []);
-  const goPrivacy = useCallback(() => router.push("/settings/privacy"), []);
   const goSupport = useCallback(() => router.push("/settings/support"), []);
   const goAbout = useCallback(() => router.push("/settings/about"), []);
   const goBack = useCallback(() => router.back(), []);
@@ -153,15 +165,21 @@ export default function ProfileScreen() {
           {/* KYC / Identity Banner Card */}
           <Pressable
             onPress={openKyc}
-            className="mt-6 flex-row items-center justify-between rounded-[26px] bg-[#D1FAD7] p-5 shadow-xs"
+            disabled={kycStatus === "verified"}
+            accessibilityRole={kycStatus === "verified" ? "text" : "button"}
+            className="mt-6 flex-row items-center justify-between rounded-[26px] bg-white p-5 shadow-xs"
           >
-            <Text
-              allowFontScaling={false}
-              className="font-bold text-[18px] text-zeno-text-primary"
-            >
-              KYC / Identity
-            </Text>
-            <VerifiedBadgeIcon size={28} />
+            <View className="flex-1">
+              <Text allowFontScaling={false} className="font-bold text-[18px] text-zeno-text-primary">
+                Identity verification
+              </Text>
+              {kycStatus === "verified" ? (
+                <Text allowFontScaling={false} className="mt-1 text-[13px] text-zeno-text-secondary">Verified</Text>
+              ) : kycStatus === "pending" ? (
+                <Text allowFontScaling={false} className="mt-1 text-[13px] text-zeno-text-secondary">Verification pending</Text>
+              ) : null}
+            </View>
+            {kycStatus === "verified" ? <VerifiedBadgeIcon size={28} /> : <ShieldOutlineIcon size={28} color="#0057FF" />}
           </Pressable>
 
           {/* General Section Header */}
@@ -195,7 +213,7 @@ export default function ProfileScreen() {
                   allowFontScaling={false}
                   className="font-medium text-[15px] text-zeno-text-secondary"
                 >
-                  English
+                  {selectedLanguage === "fr" ? "Français" : "English"}
                 </Text>
                 <ChevronRightIcon size={18} color="#6B7280" />
               </View>
@@ -226,25 +244,6 @@ export default function ProfileScreen() {
                 </Text>
                 <ChevronRightIcon size={18} color="#6B7280" />
               </View>
-            </Pressable>
-
-            {/* Dark Mode → navigates to settings page */}
-            <Pressable
-              onPress={goDarkMode}
-              className="flex-row items-center justify-between py-1 border-t border-gray-100 pt-3"
-            >
-              <View className="flex-row items-center">
-                <View className="h-11 w-11 items-center justify-center rounded-2xl bg-gray-100">
-                  <MoonIcon size={22} color="#071706" />
-                </View>
-                <Text
-                  allowFontScaling={false}
-                  className="ml-3.5 font-semibold text-[17px] text-zeno-text-primary"
-                >
-                  Dark Mode
-                </Text>
-              </View>
-              <ChevronRightIcon size={18} color="#6B7280" />
             </Pressable>
 
             {/* Notifications → navigates to settings page */}
@@ -280,25 +279,6 @@ export default function ProfileScreen() {
                   className="ml-3.5 font-semibold text-[17px] text-zeno-text-primary"
                 >
                   Security
-                </Text>
-              </View>
-              <ChevronRightIcon size={18} color="#6B7280" />
-            </Pressable>
-
-            {/* Privacy → navigates to settings page */}
-            <Pressable
-              onPress={goPrivacy}
-              className="flex-row items-center justify-between py-1 border-t border-gray-100 pt-3"
-            >
-              <View className="flex-row items-center">
-                <View className="h-11 w-11 items-center justify-center rounded-2xl bg-gray-100">
-                  <ShieldOutlineIcon size={22} color="#071706" />
-                </View>
-                <Text
-                  allowFontScaling={false}
-                  className="ml-3.5 font-semibold text-[17px] text-zeno-text-primary"
-                >
-                  Privacy
                 </Text>
               </View>
               <ChevronRightIcon size={18} color="#6B7280" />
@@ -396,12 +376,18 @@ export default function ProfileScreen() {
         visible={isEditProfileVisible}
         onClose={() => setIsEditProfileVisible(false)}
       />
-      <KycModal
-        visible={isKycVisible}
-        onClose={() => setIsKycVisible(false)}
-        status={kycStatus}
-        onStatusChange={setKycStatus}
-      />
+      {kycStatus !== "verified" ? (
+        <KycModal
+          visible={isKycVisible}
+          onClose={() => setIsKycVisible(false)}
+          status={kycStatus}
+          countryId={kycCountryId}
+          onStatusChange={(status) => {
+            if (status === "pending") setSubmittedKycPending(true);
+            if (status === "verified") setIsKycVisible(false);
+          }}
+        />
+      ) : null}
 
       {/* Account Modals */}
       <DeleteAccountModal

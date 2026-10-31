@@ -1,18 +1,13 @@
+import { showLocalizedAlert } from "@/components/ui/LocalizedText";
+import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { CameraLensIcon, CloseIcon } from "@/components/ui/ProfileIcons";
 import { images } from "@/constants/images";
 import { useUser } from "@clerk/clerk-expo";
 import { Image } from "expo-image";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    Pressable,
-    ScrollView,
-    Text,
-    TextInput,
-    View,
- } from "react-native";
+    ActivityIndicator, Modal, Pressable, ScrollView, View } from "react-native";
 
 type EditProfileModalProps = {
   visible: boolean;
@@ -41,10 +36,10 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
           lastName: lastName.trim(),
         });
       }
-      Alert.alert("Succès", "Votre profil a été mis à jour avec succès.");
+      showLocalizedAlert("Succès", "Votre profil a été mis à jour avec succès.");
       onClose();
     } catch (err: any) {
-      Alert.alert(
+      showLocalizedAlert(
         "Mise à jour réussie",
         "Les modifications de votre profil ont été enregistrées localement."
       );

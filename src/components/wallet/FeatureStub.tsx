@@ -1,7 +1,8 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { images } from "@/constants/images";
 import { useWalletIslandTitle, useWalletNav } from "@/store/wallet-nav";
 import { Image } from "expo-image";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Skeleton, SkeletonRow } from "@/components/ui/Skeleton";
 

@@ -1,9 +1,10 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { OtpInput } from "@/components/ui/OtpInput";
 import { images } from "@/constants/images";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const OTP_LENGTH = 6;

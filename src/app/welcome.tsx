@@ -1,6 +1,7 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { Image } from "expo-image";
 import { router } from "expo-router";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { images } from "@/constants/images";
 

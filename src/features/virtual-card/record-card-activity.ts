@@ -1,5 +1,6 @@
 import { useNotificationStore } from "@/store/notification-store";
 import { useTransactionStore } from "@/store/transaction-store";
+import { useLanguageStore } from "@/store/language-store";
 
 type CardMovement = {
   amount: string;
@@ -17,12 +18,14 @@ export function recordCardMovement({
 }: CardMovement) {
   const now = new Date();
   const value = Number(amount);
-  const dateLabel = new Intl.DateTimeFormat("fr-FR", {
+  const language = useLanguageStore.getState().language;
+  const dateLocale = language === "fr" ? "fr-FR" : "en-US";
+  const dateLabel = new Intl.DateTimeFormat(dateLocale, {
     day: "numeric",
     month: "short",
     year: "numeric",
   }).format(now);
-  const timeLabel = new Intl.DateTimeFormat("fr-FR", {
+  const timeLabel = new Intl.DateTimeFormat(dateLocale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(now);
@@ -33,8 +36,10 @@ export function recordCardMovement({
     id: transactionId,
     typeId: "card_payment",
     category: "card",
-    title: isTopUp ? "Recharge ZENO Card" : "Transfert depuis la ZENO Card",
-    description: isTopUp ? "Wallet ZENO → carte" : "Carte ZENO → wallet",
+    title: isTopUp ? "Recharge de la carte ZENO" : "Transfert depuis la carte ZENO",
+    description: isTopUp
+      ? "Depuis le portefeuille ZENO"
+      : "Vers le portefeuille ZENO",
     amount: value,
     totalAmount: value,
     fee: 0,
@@ -56,9 +61,13 @@ export function recordCardMovement({
   useNotificationStore.getState().addNotification({
     id: `card-${transactionId}`,
     type: "transaction",
-    message: isSandbox
-      ? `${isTopUp ? "Recharge démo" : "Transfert démo"} de ${formattedAmount} USD effectué. Aucun argent réel n'a été déplacé.`
-      : `${isTopUp ? "Carte ZENO rechargée" : "Transfert vers le wallet"} : ${formattedAmount} USD.`,
+    message: language === "fr"
+      ? isSandbox
+        ? `${isTopUp ? "Recharge démo" : "Transfert démo"} de ${formattedAmount} USD effectué. Aucun argent réel n'a été déplacé.`
+        : `${isTopUp ? "Carte ZENO rechargée" : "Transfert vers le wallet"} : ${formattedAmount} USD.`
+      : isSandbox
+        ? `${isTopUp ? "Demo top up" : "Demo transfer"} of ${formattedAmount} USD completed. No real money was moved.`
+        : `${isTopUp ? "ZENO Card topped up" : "Transfer to wallet"}: ${formattedAmount} USD.`,
     timeLabel,
     createdAt: now.toISOString(),
     read: false,

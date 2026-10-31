@@ -5,6 +5,7 @@ export const images = {
   cardInWallet: require("../../assets/images/illustration card in wallet.png"),
   google: require("../../assets/images/Google icon.png"),
   logoGreenLight: require("../../assets/images/logo green light.png"),
+  logoDarkGreen: require("../../assets/images/Logo dark green.png"),
   logoWhite: require("../../assets/images/Logo white.png"),
   requestMoney: require("../../assets/images/request moeny.png"),
   mastercard: require("../../assets/images/mastercard icon.png"),

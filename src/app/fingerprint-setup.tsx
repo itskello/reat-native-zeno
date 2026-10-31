@@ -1,10 +1,11 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { images } from "@/constants/images";
 import { authenticateWithBiometrics } from "@/lib/biometrics";
 import { useSecurityStore } from "@/store/security-store";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**

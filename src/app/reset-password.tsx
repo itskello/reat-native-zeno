@@ -1,3 +1,5 @@
+import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { CheckIcon } from "@/components/ui/CheckIcon";
 import { EyeIcon } from "@/components/ui/EyeIcon";
 import { LockIcon } from "@/components/ui/LockIcon";
@@ -11,10 +13,8 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+
+  View} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /** The rules shown under the first field, each turning green once satisfied. */

@@ -1,8 +1,9 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useAuth } from "@clerk/clerk-expo";
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Text, View } from "react-native";
+import { Animated, Easing, View } from "react-native";
 import { images } from "@/constants/images";
 
 const HOLD_DURATION = 1400;

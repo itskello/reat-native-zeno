@@ -1,8 +1,10 @@
+import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { Chevron } from "@/components/ui/Chevron";
 import { SupportedCountry, supportedCountries } from "@/data/countries";
 import { Image } from "expo-image";
 import { useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type CountrySheetProps = {

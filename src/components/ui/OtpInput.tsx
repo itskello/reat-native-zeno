@@ -1,5 +1,6 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { useEffect, useRef, useState } from "react";
-import { Animated, Pressable, Text, TextInput, View } from "react-native";
+import { Animated, Pressable, TextInput, View } from "react-native";
 
 type OtpInputProps = {
   value: string;

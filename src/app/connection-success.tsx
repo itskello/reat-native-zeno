@@ -88,9 +88,11 @@ export default function ConnectionSuccessScreen() {
 
   useEffect(() => {
     if (isReady) {
-      // Remove login/PIN routes from the authenticated back stack before entering
-      // the wallet, so Android Back can never reveal the login form underneath.
-      router.dismissAll();
+      // Clear login/PIN routes when this screen is inside a stack. A returning
+      // user can also land here as the root route, where POP_TO_TOP is invalid.
+      if (router.canDismiss()) {
+        router.dismissAll();
+      }
       router.replace("/wallet");
     }
   }, [isReady]);

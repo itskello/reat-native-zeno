@@ -6,6 +6,7 @@
  * signing secret) stay behind the routes in `src/lib/server/`.
  */
 import Constants from "expo-constants";
+import type { AppLanguage } from "@/store/language-store";
 
 /**
  * Resolves the base URL of the API routes.
@@ -53,7 +54,7 @@ function endpoint(path: string) {
 
 export type ApiResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string };
+  | { ok: false; error: string; status?: number };
 
 async function post<T>(path: string, body: unknown): Promise<ApiResult<T>> {
   try {
@@ -97,13 +98,14 @@ export async function postAuthenticated<T>(
   body: unknown = {}
 ): Promise<ApiResult<T>> {
   try {
+    const isMultipart = typeof FormData !== "undefined" && body instanceof FormData;
     const response = await fetch(endpoint(path), {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        ...(isMultipart ? {} : { "Content-Type": "application/json" }),
         Authorization: `Bearer ${sessionToken}`,
       },
-      body: JSON.stringify(body),
+      body: isMultipart ? body : JSON.stringify(body),
     });
     const payload = (await response.json().catch(() => ({}))) as Record<
       string,
@@ -112,14 +114,23 @@ export async function postAuthenticated<T>(
     if (!response.ok) {
       const isUnconfiguredCardRoute =
         response.status === 404 && path.startsWith("/api/cards/");
+      const isUnconfiguredWithdrawalRoute =
+        response.status === 404 && path === "/api/withdrawals";
+      const isUnconfiguredDepositRoute =
+        response.status === 404 && path === "/api/deposits/mobile-money";
       return {
         ok: false,
+        status: response.status,
         error:
           typeof payload.error === "string"
             ? payload.error
             : isUnconfiguredCardRoute
               ? "Card operations are not configured on this server yet."
-              : "This card service is currently unavailable.",
+              : isUnconfiguredWithdrawalRoute
+                ? "Le service de retrait n’est pas encore configuré sur ce serveur."
+                : isUnconfiguredDepositRoute
+                  ? "Le service de dépôt n’est pas encore configuré sur ce serveur."
+                  : "Something went wrong. Please try again.",
       };
     }
     return { ok: true, data: payload as T };
@@ -131,8 +142,61 @@ export async function postAuthenticated<T>(
   }
 }
 
-export function requestPhoneOtp(phone: string) {
-  return post<{ token: string; expiresAt: number }>("/api/otp/send", { phone });
+/** Authenticated GET for read-only user-scoped endpoints, with cancellation. */
+export async function getAuthenticated<T>(
+  path: string,
+  sessionToken: string,
+  signal?: AbortSignal
+): Promise<ApiResult<T>> {
+  try {
+    const response = await fetch(endpoint(path), {
+      method: "GET",
+      headers: { Authorization: `Bearer ${sessionToken}` },
+      signal,
+    });
+    const payload = (await response.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: response.status,
+        error:
+          typeof payload.error === "string"
+            ? payload.error
+            : "Something went wrong. Please try again.",
+      };
+    }
+    return { ok: true, data: payload as T };
+  } catch (cause) {
+    if (signal?.aborted) throw cause;
+    return {
+      ok: false,
+      error: "We could not reach ZENO. Check your connection and try again.",
+    };
+  }
+}
+
+/** Authenticated DELETE for a user-scoped resource. */
+export async function deleteAuthenticated<T>(path: string, sessionToken: string) {
+  try {
+    const response = await fetch(endpoint(path), {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    });
+    const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!response.ok) {
+      return { ok: false as const, error: typeof payload.error === "string" ? payload.error : "Something went wrong. Please try again." };
+    }
+    return { ok: true as const, data: payload as T };
+  } catch {
+    return { ok: false as const, error: "We could not reach ZENO. Check your connection and try again." };
+  }
+}
+
+export function requestPhoneOtp(phone: string, language: AppLanguage = "fr") {
+  return post<{ token: string; expiresAt: number }>("/api/otp/send", { phone, language });
 }
 
 export function verifyPhoneOtp(input: {

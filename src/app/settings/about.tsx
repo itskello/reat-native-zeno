@@ -1,11 +1,14 @@
+import { showLocalizedAlert } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { CameraIcon, ChevronRightIcon, GlobeWebIcon, XSocialIcon } from "@/components/ui/ProfileIcons";
 import { SettingsSkeleton } from "@/components/ui/Skeleton";
 import { useInitialLoading } from "@/lib/useInitialLoading";
+import Constants from "expo-constants";
 import { images } from "@/constants/images";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import * as Linking from "expo-linking";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function AboutScreen() {
@@ -13,7 +16,7 @@ export default function AboutScreen() {
   const isInitialLoading = useInitialLoading(300);
 
   const handleWhatsNew = () => {
-    Alert.alert(
+    showLocalizedAlert(
       "What's New in v1.0.0",
       "🎉 Bienvenue sur ZENO!\n\n" +
         "• Portefeuille digital avec dépôts et retraits Mobile Money\n" +
@@ -28,7 +31,7 @@ export default function AboutScreen() {
   };
 
   const handleRateUs = () => {
-    Alert.alert(
+    showLocalizedAlert(
       "Rate ZENO",
       "Aimez-vous utiliser ZENO ? Donnez-nous votre avis sur l'App Store!",
       [
@@ -37,7 +40,7 @@ export default function AboutScreen() {
           text: "Noter ⭐",
           onPress: () => {
             // In production: use expo-store-review
-            Alert.alert("Merci!", "Merci pour votre soutien! 🙏");
+            showLocalizedAlert("Merci!", "Merci pour votre soutien! 🙏");
           },
         },
       ]
@@ -46,35 +49,29 @@ export default function AboutScreen() {
 
   const handleOpenWebsite = () => {
     Linking.openURL("https://zeno.app").catch(() =>
-      Alert.alert("Erreur", "Impossible d'ouvrir le site web.")
+      showLocalizedAlert("Erreur", "Impossible d'ouvrir le site web.")
     );
   };
 
   const handleOpenTwitter = () => {
     Linking.openURL("https://twitter.com/zenoapp").catch(() =>
-      Alert.alert("Erreur", "Impossible d'ouvrir le lien.")
+      showLocalizedAlert("Erreur", "Impossible d'ouvrir le lien.")
     );
   };
 
   const handleOpenInstagram = () => {
     Linking.openURL("https://instagram.com/zenoapp").catch(() =>
-      Alert.alert("Erreur", "Impossible d'ouvrir le lien.")
+      showLocalizedAlert("Erreur", "Impossible d'ouvrir le lien.")
     );
   };
 
-  const handleLegal = () => {
-    Alert.alert(
-      "Legal",
-      "📋 Conditions Générales d'Utilisation\n\n" +
-        "En utilisant ZENO, vous acceptez nos conditions générales d'utilisation, " +
-        "notre politique de confidentialité, et nos conditions de service financier.\n\n" +
-        "ZENO est un service de paiement électronique opérant sous les réglementations " +
-        "de la BCEAO et conforme aux normes UEMOA.\n\n" +
-        "© 2025 ZENO Technologies. Tous droits réservés.\n\n" +
-        "Contact juridique: legal@zeno.app",
-      [{ text: "Fermer" }]
-    );
+  const openLegalDocument = (document: "terms" | "privacy" | "fees") => {
+    router.push(`/settings/legal-document?document=${document}` as never);
   };
+
+  const handleTermsOfUse = () => openLegalDocument("terms");
+  const handlePrivacyPolicy = () => openLegalDocument("privacy");
+  const handleFeesAndLimits = () => openLegalDocument("fees");
 
   if (isInitialLoading) {
     return (
@@ -113,37 +110,11 @@ export default function AboutScreen() {
 
         <ScrollView showsVerticalScrollIndicator={false} scrollEventThrottle={16} keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: 32 }}
-          className="mt-6"
+          className="mt-6 flex-1"
         >
-          {/* App Branding & Description */}
-          <View className="items-center py-4">
-            <View className="h-20 w-20 items-center justify-center rounded-3xl bg-zeno-dark shadow-md mb-3">
-              <Text
-                allowFontScaling={false}
-                className="font-bold text-[20px] text-zeno-green"
-              >
-                ZENO
-              </Text>
-            </View>
-            <Text
-              allowFontScaling={false}
-              className="mt-1 font-bold text-[18px] text-zeno-text-primary"
-            >
-              Version 1.0.0
-            </Text>
-            <Text
-              allowFontScaling={false}
-              className="text-[13px] text-zeno-text-secondary"
-            >
-              Build 100
-            </Text>
-
-            <Text
-              allowFontScaling={false}
-              className="mt-4 px-6 text-center font-medium text-[14px] leading-[22px] text-zeno-text-secondary"
-            >
-              ZENO is a fast, secure and reliable fintech app that helps you send, receive and manage your money with ease.
-            </Text>
+          {/* App logo */}
+          <View className="items-center py-3">
+            <Image source={images.logoDarkGreen} style={{ width: 156, height: 66 }} contentFit="contain" />
           </View>
 
           {/* Options Card */}
@@ -176,16 +147,42 @@ export default function AboutScreen() {
               <ChevronRightIcon size={18} color="#6B7280" />
             </Pressable>
 
-            {/* Legal → shows legal info */}
+            {/* Terms of use → opens the ZENO terms hosted in Notion */}
             <Pressable
-              onPress={handleLegal}
+              onPress={handleTermsOfUse}
               className="flex-row items-center justify-between py-2 border-t border-gray-100 pt-4"
             >
               <Text
                 allowFontScaling={false}
                 className="font-semibold text-[17px] text-zeno-text-primary"
               >
-                Legal
+                Terms of Use
+              </Text>
+              <ChevronRightIcon size={18} color="#6B7280" />
+            </Pressable>
+
+            <Pressable
+              onPress={handlePrivacyPolicy}
+              className="flex-row items-center justify-between py-2 border-t border-gray-100 pt-4"
+            >
+              <Text
+                allowFontScaling={false}
+                className="font-semibold text-[17px] text-zeno-text-primary"
+              >
+                Privacy Policy
+              </Text>
+              <ChevronRightIcon size={18} color="#6B7280" />
+            </Pressable>
+
+            <Pressable
+              onPress={handleFeesAndLimits}
+              className="flex-row items-center justify-between py-2 border-t border-gray-100 pt-4"
+            >
+              <Text
+                allowFontScaling={false}
+                className="font-semibold text-[17px] text-zeno-text-primary"
+              >
+                Fees and Limits
               </Text>
               <ChevronRightIcon size={18} color="#6B7280" />
             </Pressable>
@@ -221,60 +218,10 @@ export default function AboutScreen() {
             </View>
           </View>
 
-          {/* App Info Card */}
-          <View className="mt-6 rounded-[28px] bg-white p-4 shadow-xs gap-y-3">
-            <View className="flex-row justify-between py-2">
-              <Text
-                allowFontScaling={false}
-                className="font-semibold text-[15px] text-zeno-text-secondary"
-              >
-                Version
-              </Text>
-              <Text
-                allowFontScaling={false}
-                className="font-bold text-[15px] text-zeno-text-primary"
-              >
-                1.0.0 (Build 100)
-              </Text>
-            </View>
-            <View className="flex-row justify-between py-2 border-t border-gray-100">
-              <Text
-                allowFontScaling={false}
-                className="font-semibold text-[15px] text-zeno-text-secondary"
-              >
-                Target Markets
-              </Text>
-              <Text
-                allowFontScaling={false}
-                className="font-bold text-[15px] text-zeno-text-primary"
-              >
-                Bénin, Côte d'Ivoire
-              </Text>
-            </View>
-            <View className="flex-row justify-between py-2 border-t border-gray-100">
-              <Text
-                allowFontScaling={false}
-                className="font-semibold text-[15px] text-zeno-text-secondary"
-              >
-                Infrastructure
-              </Text>
-              <Text
-                allowFontScaling={false}
-                className="font-bold text-[15px] text-zeno-text-primary"
-              >
-                Kollekt & Visa Direct
-              </Text>
-            </View>
-          </View>
-
-          {/* Copyright */}
-          <Text
-            allowFontScaling={false}
-            className="mt-6 text-center text-[12px] text-zeno-text-secondary"
-          >
-            © 2025 ZENO Technologies. All rights reserved.
-          </Text>
         </ScrollView>
+        <Text allowFontScaling={false} className="pb-3 text-center text-[12px] font-medium text-zeno-text-secondary">
+          App version {Constants.expoConfig?.version ?? "1.0.0"}
+        </Text>
       </View>
     </View>
   );

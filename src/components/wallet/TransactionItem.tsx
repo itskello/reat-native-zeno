@@ -1,10 +1,11 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
 import { formatAmount } from "@/data/currencies";
 import { getTransactionType } from "@/data/transaction-types";
 import type { CurrencyCode } from "@/types/content";
 import type { Transaction, TransactionStatus } from "@/types/wallet";
 import { memo } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 
 type TransactionItemProps = {
   transaction: Transaction;

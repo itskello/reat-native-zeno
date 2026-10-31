@@ -1,17 +1,12 @@
+import { showLocalizedAlert } from "@/components/ui/LocalizedText";
+import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { CloseIcon } from "@/components/ui/CloseIcon";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    Pressable,
-    ScrollView,
-    Text,
-    TextInput,
-    View,
- } from "react-native";
+    ActivityIndicator, Modal, Pressable, ScrollView, View } from "react-native";
 
 type DeleteAccountModalProps = {
   visible: boolean;
@@ -29,7 +24,7 @@ export function DeleteAccountModal({
 
   const handleDelete = async () => {
     if (confirmText.trim().toUpperCase() !== "SUPPRIMER") {
-      Alert.alert(
+      showLocalizedAlert(
         "Confirmation requise",
         "Veuillez taper le mot 'SUPPRIMER' en majuscules pour valider la suppression."
       );
@@ -45,7 +40,7 @@ export function DeleteAccountModal({
       onClose();
       router.replace("/welcome");
     } catch (err: any) {
-      Alert.alert(
+      showLocalizedAlert(
         "Demande de suppression enregistrée",
         "Votre compte a été désactivé et sera supprimé définitivement."
       );

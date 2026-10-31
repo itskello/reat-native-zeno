@@ -1,82 +1,63 @@
+import { showLocalizedAlert } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { useAuth } from "@clerk/clerk-expo";
 import { router } from "expo-router";
-import { useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { ActivityIndicator, Modal, View } from "react-native";
 
 type LogoutModalProps = {
   visible: boolean;
   onClose: () => void;
 };
 
+/** A brief progress overlay shown while Clerk signs the user out. */
 export function LogoutModal({ visible, onClose }: LogoutModalProps) {
   const { signOut } = useAuth();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const logoutStarted = useRef(false);
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      await signOut();
-      onClose();
-      router.replace("/welcome");
-    } catch (err: any) {
-      Alert.alert(
-        "Déconnexion réussie",
-        "Vous avez été déconnecté avec succès."
-      );
-      onClose();
-      router.replace("/welcome");
-    } finally {
-      setIsLoggingOut(false);
+  useEffect(() => {
+    if (!visible) {
+      logoutStarted.current = false;
+      return;
     }
-  };
+    if (logoutStarted.current) return;
+
+    logoutStarted.current = true;
+    const startedAt = Date.now();
+
+    void (async () => {
+      try {
+        await signOut();
+
+        // Keep the progress feedback visible long enough to register on fast connections.
+        const remainingFeedbackTime = 650 - (Date.now() - startedAt);
+        if (remainingFeedbackTime > 0) {
+          await new Promise((resolve) => setTimeout(resolve, remainingFeedbackTime));
+        }
+
+        onClose();
+        router.replace("/welcome");
+      } catch {
+        logoutStarted.current = false;
+        onClose();
+        showLocalizedAlert("Erreur", "Une erreur est survenue. Réessaie.");
+      }
+    })();
+  }, [onClose, signOut, visible]);
 
   return (
     <Modal
       visible={visible}
       animationType="fade"
       transparent
-      onRequestClose={onClose}
+      onRequestClose={() => undefined}
     >
-      <View className="flex-1 items-center justify-center bg-black/60 px-6">
-        <View className="w-full max-w-sm rounded-[28px] bg-white p-6 shadow-2xl">
-          <View className="items-center">
-            <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-              <Text className="text-[32px]">🚪</Text>
-            </View>
-
-            <Text className="font-bold text-[22px] text-zeno-text-primary">
-              Déconnexion
-            </Text>
-            <Text className="mt-2 text-center font-medium text-[15px] text-zeno-text-secondary">
-              Êtes-vous sûr de vouloir vous déconnecter de votre compte ZENO ?
-            </Text>
-          </View>
-
-          <View className="mt-6 flex-row gap-x-3">
-            <Pressable
-              onPress={onClose}
-              disabled={isLoggingOut}
-              className="flex-1 h-14 items-center justify-center rounded-2xl bg-gray-100"
-            >
-              <Text className="font-bold text-[16px] text-gray-700">
-                Annuler
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={handleLogout}
-              disabled={isLoggingOut}
-              className="flex-1 h-14 items-center justify-center rounded-2xl bg-zeno-blue shadow-md"
-            >
-              {isLoggingOut ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text className="font-bold text-[16px] text-white">
-                  Déconnexion
-                </Text>
-              )}
-            </Pressable>
-          </View>
+      <View className="flex-1 items-center justify-center bg-black/50">
+        <View className="items-center rounded-[24px] bg-white px-8 py-7 shadow-2xl">
+          <ActivityIndicator size="large" color="#0057FF" />
+          <Text className="mt-4 text-[16px] font-semibold text-zeno-text-primary">
+            Logging out…
+          </Text>
         </View>
       </View>
     </Modal>

@@ -1,3 +1,5 @@
+import { showLocalizedAlert } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { ChevronRightIcon } from "@/components/ui/ProfileIcons";
 import { CloseIcon } from "@/components/ui/CloseIcon";
 import { SettingsSkeleton } from "@/components/ui/Skeleton";
@@ -7,14 +9,12 @@ import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-    Alert,
     Modal,
     Pressable,
     ScrollView,
     Switch,
-    Text,
-    View,
-} from "react-native";
+
+    View} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type VisibilityOption = "everyone" | "contacts" | "nobody";
@@ -25,41 +25,12 @@ export default function PrivacyScreen() {
 
   const [profileVisibility, setProfileVisibility] = useState<VisibilityOption>("everyone");
   const [adsPersonalization, setAdsPersonalization] = useState(true);
-  const [dataSharing, setDataSharing] = useState(true);
   const [isVisibilityModalVisible, setIsVisibilityModalVisible] = useState(false);
-  const [isDataModalVisible, setIsDataModalVisible] = useState(false);
 
   const visibilityLabel = {
     everyone: "Everyone",
     contacts: "Contacts Only",
     nobody: "Nobody",
-  };
-
-  const handleExportData = () => {
-    Alert.alert(
-      "Export des données",
-      "Votre demande d'export de données a été enregistrée. Vous recevrez un email avec vos données dans les 48h.",
-      [{ text: "OK" }]
-    );
-  };
-
-  const handleDeleteData = () => {
-    Alert.alert(
-      "Supprimer mes données",
-      "Cette action est irréversible. Toutes vos données personnelles seront supprimées conformément au RGPD. Votre compte sera également supprimé.",
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Confirmer",
-          style: "destructive",
-          onPress: () =>
-            Alert.alert(
-              "Demande enregistrée",
-              "Votre demande de suppression a été enregistrée. Elle sera traitée sous 30 jours."
-            ),
-        },
-      ]
-    );
   };
 
   if (isInitialLoading) {
@@ -101,27 +72,6 @@ export default function PrivacyScreen() {
           contentContainerStyle={{ paddingBottom: 32 }}
           className="mt-6"
         >
-          {/* Privacy Banner */}
-          <View className="flex-row items-center justify-between rounded-[28px] bg-white p-5 shadow-xs">
-            <View className="flex-1 pr-4">
-              <Text
-                allowFontScaling={false}
-                className="font-bold text-[18px] text-zeno-text-primary"
-              >
-                Privacy Settings
-              </Text>
-              <Text
-                allowFontScaling={false}
-                className="mt-1 font-medium text-[14px] text-zeno-text-secondary leading-[20px]"
-              >
-                Control how your data is used and shared.
-              </Text>
-            </View>
-            <View className="h-12 w-12 items-center justify-center rounded-2xl bg-green-100">
-              <Text className="text-[24px]">🔒</Text>
-            </View>
-          </View>
-
           {/* Section Sub-header */}
           <Text
             allowFontScaling={false}
@@ -162,66 +112,12 @@ export default function PrivacyScreen() {
               </View>
             </Pressable>
 
-            {/* Data Sharing */}
-            <View className="flex-row items-center justify-between py-2 border-t border-gray-100 pt-4">
-              <View className="flex-1 pr-3">
-                <Text
-                  allowFontScaling={false}
-                  className="font-semibold text-[17px] text-zeno-text-primary"
-                >
-                  Data Sharing
-                </Text>
-                <Text
-                  allowFontScaling={false}
-                  className="mt-0.5 text-[13px] text-zeno-text-secondary"
-                >
-                  Share anonymized data to improve services
-                </Text>
-              </View>
-              <Switch
-                value={dataSharing}
-                onValueChange={(val) => {
-                  setDataSharing(val);
-                  Alert.alert(
-                    val ? "Partage activé" : "Partage désactivé",
-                    val
-                      ? "Les données anonymisées seront partagées pour améliorer nos services."
-                      : "Le partage de données anonymisées a été désactivé."
-                  );
-                }}
-                trackColor={{ false: "#E5E7EB", true: "#70DF00" }}
-                thumbColor="#ffffff"
-              />
-            </View>
-
-            {/* Personal Data → opens data management modal */}
-            <Pressable
-              onPress={() => setIsDataModalVisible(true)}
-              className="flex-row items-center justify-between py-2 border-t border-gray-100 pt-4"
-            >
-              <View className="flex-1 pr-3">
-                <Text
-                  allowFontScaling={false}
-                  className="font-semibold text-[17px] text-zeno-text-primary"
-                >
-                  Personal Data
-                </Text>
-                <Text
-                  allowFontScaling={false}
-                  className="mt-0.5 text-[13px] text-zeno-text-secondary"
-                >
-                  View and manage your data
-                </Text>
-              </View>
-              <ChevronRightIcon size={18} color="#6B7280" />
-            </Pressable>
-
             {/* Blocked Users */}
             <Pressable
               onPress={() =>
-                Alert.alert(
-                  "Utilisateurs bloqués",
-                  "Vous n'avez aucun utilisateur bloqué pour le moment."
+                showLocalizedAlert(
+                  "Blocked users",
+                  "You don't have any blocked users yet."
                 )
               }
               className="flex-row items-center justify-between py-2 border-t border-gray-100 pt-4"
@@ -350,78 +246,6 @@ export default function PrivacyScreen() {
         </View>
       </Modal>
 
-      {/* Personal Data Management Modal */}
-      <Modal
-        visible={isDataModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setIsDataModalVisible(false)}
-      >
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="max-h-[90%] rounded-t-[32px] bg-white p-6 shadow-2xl">
-            <View className="mb-4 flex-row items-center justify-between">
-              <Text
-                allowFontScaling={false}
-                className="font-bold text-[22px] text-zeno-text-primary"
-              >
-                Personal Data
-              </Text>
-              <Pressable
-                onPress={() => setIsDataModalVisible(false)}
-                className="h-9 w-9 items-center justify-center rounded-full bg-gray-100"
-              >
-                <CloseIcon size={14} color="#6B7280" />
-              </Pressable>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" scrollEventThrottle={16}>
-              <View className="gap-y-4 py-2">
-                <Text
-                  allowFontScaling={false}
-                  className="font-bold text-[16px] text-zeno-text-primary"
-                >
-                  Your Data Rights
-                </Text>
-                <Text
-                  allowFontScaling={false}
-                  className="font-medium text-[14px] leading-[22px] text-gray-600"
-                >
-                  Conformément au RGPD et aux réglementations UEMOA, vous avez le droit d'accéder à vos données personnelles, de les exporter et de demander leur suppression.
-                </Text>
-
-                {/* Export Data */}
-                <Pressable
-                  onPress={handleExportData}
-                  className="mt-2 h-14 items-center justify-center rounded-2xl bg-zeno-blue shadow-md"
-                >
-                  <Text allowFontScaling={false} className="font-bold text-[16px] text-white">
-                    📥 Exporter mes données
-                  </Text>
-                </Pressable>
-
-                {/* Delete Data */}
-                <Pressable
-                  onPress={handleDeleteData}
-                  className="h-14 items-center justify-center rounded-2xl bg-red-50 border border-red-200"
-                >
-                  <Text allowFontScaling={false} className="font-bold text-[16px] text-red-600">
-                    🗑️ Supprimer mes données
-                  </Text>
-                </Pressable>
-              </View>
-
-              <Pressable
-                onPress={() => setIsDataModalVisible(false)}
-                className="mt-4 mb-4 h-14 items-center justify-center rounded-2xl bg-gray-100"
-              >
-                <Text allowFontScaling={false} className="font-bold text-[16px] text-gray-700">
-                  Fermer
-                </Text>
-              </Pressable>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }

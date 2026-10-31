@@ -1,8 +1,9 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import React, { useCallback } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, usePathname } from "expo-router";
+import { router } from "expo-router";
 import { useWalletNav } from "@/store/wallet-nav";
 
 type TabId = "home" | "transactions" | "profile";
@@ -13,30 +14,29 @@ interface FloatingGlassNavBarProps {
 
 export function FloatingGlassNavBar({ activeTab }: FloatingGlassNavBarProps) {
   const insets = useSafeAreaInsets();
-  const pathname = usePathname();
   const currentWalletScreen = useWalletNav((s) => s.current);
   const navigateTo = useWalletNav((s) => s.navigateTo);
   const goHome = useWalletNav((s) => s.goHome);
 
-  // Determine current active tab automatically if not passed explicitly
+  // The wallet has a single route; its room store determines the selected tab.
+  // Profile passes its tab explicitly so this shared bar does not need to read
+  // Expo Router navigation context while wallet surfaces are being presented.
   const derivedTab: TabId = React.useMemo(() => {
     if (activeTab) return activeTab;
-    if (pathname.includes("/profile")) return "profile";
-    if (pathname.includes("/settings")) return "profile";
-    if (currentWalletScreen === "TRANSACTIONS" || pathname.includes("/transactions")) return "transactions";
+    if (currentWalletScreen === "TRANSACTIONS") return "transactions";
     return "home";
-  }, [activeTab, pathname, currentWalletScreen]);
+  }, [activeTab, currentWalletScreen]);
 
   const handleTabPress = useCallback((tab: TabId) => {
     if (tab === "home") {
       // Always reset the wallet room first — otherwise returning from profile/settings
       // would land on whichever room was last open (e.g. TRANSACTIONS).
       goHome();
-      if (pathname !== "/wallet") {
+      if (activeTab === "profile") {
         router.replace("/wallet");
       }
     } else if (tab === "transactions") {
-      if (pathname !== "/wallet") {
+      if (activeTab === "profile") {
         router.replace("/wallet");
       }
       // Schedule navigateTo after potential replace settles
@@ -44,7 +44,7 @@ export function FloatingGlassNavBar({ activeTab }: FloatingGlassNavBarProps) {
     } else if (tab === "profile") {
       router.push("/profile");
     }
-  }, [pathname, goHome, navigateTo]);
+  }, [activeTab, goHome, navigateTo]);
 
   const pressHome = useCallback(() => handleTabPress("home"), [handleTabPress]);
   const pressTransactions = useCallback(() => handleTabPress("transactions"), [handleTabPress]);
@@ -53,8 +53,10 @@ export function FloatingGlassNavBar({ activeTab }: FloatingGlassNavBarProps) {
   return (
     <View
       pointerEvents="box-none"
-      className="absolute left-0 right-0 bottom-0 z-50 bg-white/95 border-t border-gray-100"
+      className="absolute left-0 right-0 bottom-0 bg-white/95 border-t border-gray-100"
       style={{
+        zIndex: 100,
+        elevation: 100,
         paddingBottom: Math.max(insets.bottom, 12),
       }}
     >

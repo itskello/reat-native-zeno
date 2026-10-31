@@ -11,6 +11,7 @@ type StartSignUpInput = {
   phoneNumber: string;
   password: string;
   country: SupportedCountry;
+  residencyCountryId: SupportedCountry["id"];
 };
 
 /**
@@ -31,7 +32,7 @@ export function useStartSignUp() {
   const [error, setError] = useState<string | null>(null);
 
   const startSignUp = useCallback(
-    async ({ email, phoneNumber, password, country }: StartSignUpInput) => {
+    async ({ email, phoneNumber, password, country, residencyCountryId }: StartSignUpInput) => {
       if (!isLoaded || !signUp) {
         setError("Sign-up is not ready yet. Please try again.");
         return false;
@@ -48,7 +49,11 @@ export function useStartSignUp() {
         await signUp.create({
           emailAddress: email,
           password,
-          unsafeMetadata: { phoneNumber: e164, phoneVerified: false },
+          unsafeMetadata: {
+            phoneNumber: e164,
+            phoneVerified: false,
+            countryId: residencyCountryId,
+          },
         });
       } catch (cause) {
         console.warn("[clerk] signUp.create failed", cause);

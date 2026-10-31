@@ -1,7 +1,10 @@
+import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { Chevron } from "@/components/ui/Chevron";
 import { CountrySheet } from "@/components/ui/CountrySheet";
 import { images } from "@/constants/images";
 import { requestPhoneOtp } from "@/lib/api";
+import { useLanguageStore } from "@/store/language-store";
 import {
   SupportedCountry,
   formatPhoneNumber,
@@ -18,10 +21,8 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+
+  View} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**
@@ -50,6 +51,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function AddPhoneNumberScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useUser();
+  const language = useLanguageStore((state) => state.language);
   const [phoneCountry, setPhoneCountry] = useState<SupportedCountry>(
     supportedCountries[0]
   );
@@ -106,7 +108,7 @@ export default function AddPhoneNumberScreen() {
       // delivers to Benin, Côte d'Ivoire, Togo). Clerk's managed SMS does not
       // reach our launch markets, so the number is stored in unsafeMetadata
       // and marked verified only after the OTP check passes.
-      const sent = await requestPhoneOtp(e164);
+      const sent = await requestPhoneOtp(e164, language);
 
       if (!sent.ok) {
         setError(sent.error);

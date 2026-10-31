@@ -20,23 +20,25 @@ type AppState = {
   selectedCountry: SupportedCountry;
   selectedCurrency: CurrencyCode;
   setSelectedCountry: (id: CountryId) => void;
+  setSelectedCurrency: (currency: CurrencyCode) => void;
 };
 
 function resolve(id: CountryId): {
   selectedCountryId: CountryId;
   selectedCountry: SupportedCountry;
-  selectedCurrency: CurrencyCode;
 } {
   // findCountry only returns undefined for an unknown id; the default is known.
   const country = findCountry(id) ?? findCountry(DEFAULT_COUNTRY_ID)!;
   return {
     selectedCountryId: country.id,
     selectedCountry: country,
-    selectedCurrency: country.defaultCurrency,
   };
 }
 
 export const useAppStore = create<AppState>((set) => ({
   ...resolve(DEFAULT_COUNTRY_ID),
+  // USD is ZENO's primary wallet currency; country remains independent.
+  selectedCurrency: "USD",
   setSelectedCountry: (id) => set(resolve(id)),
+  setSelectedCurrency: (selectedCurrency) => set({ selectedCurrency }),
 }));

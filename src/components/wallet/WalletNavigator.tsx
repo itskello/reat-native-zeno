@@ -11,8 +11,8 @@ import { useWalletNav, useWalletRoom } from "@/store/wallet-nav";
 import { springs } from "@/constants/motion";
 import { colors } from "@/theme/colors";
 import { BackHandler, View } from "react-native";
-import { useFocusEffect } from "expo-router";
-import { useCallback } from "react";
+import { router } from "expo-router";
+import { useEffect } from "react";
 import Animated, {
     interpolateColor,
     useAnimatedScrollHandler,
@@ -47,28 +47,29 @@ export function WalletNavigator() {
   // Wallet rooms live inside one route. Keep Android Back inside that model:
   // close an open room/card first, and never reveal an old login route beneath
   // the authenticated wallet. At Wallet Home, Back exits the app normally.
-  useFocusEffect(
-    useCallback(() => {
-      const subscription = BackHandler.addEventListener(
-        "hardwareBackPress",
-        () => {
-          if (cardDragY.value > 1) {
-            cardDragY.value = withSpring(0, springs.liquid);
-            goHome();
-            return true;
-          }
-          if (current !== "HOME") {
-            goHome();
-            return true;
-          }
-          BackHandler.exitApp();
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        if (cardDragY.value > 1) {
+          cardDragY.value = withSpring(0, springs.liquid);
+          goHome();
           return true;
         }
-      );
+        if (current !== "HOME") {
+          goHome();
+          return true;
+        }
+        // Let Expo Router pop a real route (for example, Profile) before
+        // exiting the app. Wallet surfaces themselves stay in the room store.
+        if (router.canGoBack()) return false;
+        BackHandler.exitApp();
+        return true;
+      }
+    );
 
-      return () => subscription.remove();
-    }, [current, goHome])
-  );
+    return () => subscription.remove();
+  }, [current, goHome]);
   const roomVisible = current !== "HOME";
   const surfaceRoom = room && !isIslandRoom(room) ? room : null;
 
@@ -151,8 +152,10 @@ export function WalletNavigator() {
         <DynamicIsland collapse={collapse} liftDistance={ISLAND_HEIGHT / 2} />
       </Animated.View>
 
-      {/* Floating Liquid Glass Navigation Bar (3 Main Tabs) */}
-      {current !== "CARD" && <FloatingGlassNavBar />}
+      {/* Keep the main navigation available on Wallet Home and Transactions. */}
+      {(current === "HOME" || current === "TRANSACTIONS") && (
+        <FloatingGlassNavBar />
+      )}
     </Animated.View>
   );
 }

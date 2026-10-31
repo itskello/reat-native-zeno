@@ -1,3 +1,5 @@
+import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { PIN_LENGTH, PinPad } from "@/components/auth/PinPad";
 import { CloseIcon } from "@/components/ui/CloseIcon";
 import { EyeIcon } from "@/components/ui/EyeIcon";
@@ -12,10 +14,8 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
-  Text,
-  TextInput,
-  View
-} from "react-native";
+
+  View} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**
@@ -238,18 +238,6 @@ export default function VerifyPinScreen() {
             </Text>
           </Pressable>
 
-          <Pressable
-            onPress={handleUseAnotherAccount}
-            hitSlop={8}
-            className="py-1"
-          >
-            <Text
-              className="font-semibold text-[15px] text-zeno-text-secondary"
-              allowFontScaling={false}
-            >
-              Utiliser un autre compte
-            </Text>
-          </Pressable>
         </View>
       </View>
 

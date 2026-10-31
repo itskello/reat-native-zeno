@@ -1,4 +1,6 @@
 import { tokenCache } from "@/lib/token-cache";
+import { DeviceSessionReporter } from "@/components/auth/DeviceSessionReporter";
+import { useLanguageStore } from "@/store/language-store";
 import { ClerkProvider } from "@clerk/clerk-expo";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -27,22 +29,28 @@ export default function RootLayout() {
     "ZalandoCondensed-Bold": require("../../assets/fonts/ZalandoSans_Condensed-Bold.ttf"),
   });
   const [isReady, setIsReady] = useState(false);
+  const languageHydrated = useLanguageStore((state) => state.hydrated);
+  const hydrateLanguage = useLanguageStore((state) => state.hydrate);
 
   useEffect(() => {
-    if (fontsLoaded) {
+    void hydrateLanguage();
+  }, [hydrateLanguage]);
+
+  useEffect(() => {
+    if (fontsLoaded && languageHydrated) {
       SplashScreen.hideAsync()
         .catch(() => {})
         .finally(() => setIsReady(true));
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, languageHydrated]);
 
   const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded) {
+    if (fontsLoaded && languageHydrated) {
       await SplashScreen.hideAsync().catch(() => {});
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, languageHydrated]);
 
-  if (!isReady) {
+  if (!isReady || !languageHydrated) {
     return null;
   }
 
@@ -52,6 +60,7 @@ export default function RootLayout() {
       tokenCache={tokenCache}
     >
       <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
+        <DeviceSessionReporter />
         <Stack
           screenOptions={{
             headerShown: false,

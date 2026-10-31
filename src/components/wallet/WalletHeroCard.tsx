@@ -1,7 +1,8 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { EyeIcon } from "@/components/ui/EyeIcon";
 import { images } from "@/constants/images";
 import { Image } from "expo-image";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 
 type WalletHeroCardProps = {
   /** Preformatted balance string, e.g. "5 000 FCFA". */

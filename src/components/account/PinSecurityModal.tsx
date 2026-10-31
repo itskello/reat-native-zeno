@@ -1,9 +1,11 @@
+import { showLocalizedAlert } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { CloseIcon } from "@/components/ui/CloseIcon";
 import { PIN_LENGTH, PinPad } from "@/components/auth/PinPad";
 import { useSecurityStore } from "@/store/security-store";
 import { useUser } from "@clerk/clerk-expo";
 import { useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, View } from "react-native";
 
 type PinSecurityModalProps = {
   visible: boolean;
@@ -38,15 +40,21 @@ export function PinSecurityModal({ visible, onClose }: PinSecurityModalProps) {
     setCurrentPin(enteredPin);
     setErrorMsg(null);
 
+    // PinPad calls onChange for every digit. Only verify after the full PIN
+    // has been entered; otherwise the flow can advance while the user types.
+    if (enteredPin.length !== PIN_LENGTH) return;
+
     const hasStoredPin = await useSecurityStore.getState().hasPin(userId);
     if (!hasStoredPin) {
       // If no PIN stored yet, move to creating new PIN
+      setCurrentPin("");
       setStep("new_pin");
       return;
     }
 
     const isValid = await verifyPin(userId, enteredPin);
     if (isValid) {
+      setCurrentPin("");
       setStep("new_pin");
     } else {
       setErrorMsg("PIN incorrect. Veuillez réessayez.");
@@ -57,11 +65,13 @@ export function PinSecurityModal({ visible, onClose }: PinSecurityModalProps) {
   const handleNewPinEntered = (enteredPin: string) => {
     setNewPin(enteredPin);
     setErrorMsg(null);
-    setStep("confirm_pin");
+    if (enteredPin.length === PIN_LENGTH) setStep("confirm_pin");
   };
 
   const handleConfirmPinEntered = async (enteredPin: string) => {
     setConfirmPin(enteredPin);
+    if (enteredPin.length !== PIN_LENGTH) return;
+
     if (enteredPin !== newPin) {
       setErrorMsg("Les deux codes PIN ne correspondent pas.");
       setConfirmPin("");
@@ -70,7 +80,7 @@ export function PinSecurityModal({ visible, onClose }: PinSecurityModalProps) {
 
     const success = await setPin(userId, enteredPin);
     if (success) {
-      Alert.alert(
+      showLocalizedAlert(
         "PIN mis à jour",
         `Votre nouveau code PIN à ${PIN_LENGTH} chiffres a été enregistré.`
       );
@@ -110,13 +120,6 @@ export function PinSecurityModal({ visible, onClose }: PinSecurityModalProps) {
 
           <ScrollView showsVerticalScrollIndicator={false}>
             <View className="items-center py-2">
-              <Text className="text-center font-bold text-[18px] text-zeno-text-primary">
-                {step === "verify_current"
-                  ? "Entrez votre PIN actuel"
-                  : step === "new_pin"
-                  ? "Définir le nouveau PIN"
-                  : "Confirmer le nouveau PIN"}
-              </Text>
               <Text className="mt-1 text-center font-medium text-[14px] text-zeno-text-secondary">
                 {step === "verify_current"
                   ? `Saisissez votre code PIN à ${PIN_LENGTH} chiffres pour continuer`

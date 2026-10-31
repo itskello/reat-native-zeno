@@ -6,7 +6,7 @@ import { isE164, maskPhoneNumber } from "@/lib/phone";
 
 /**
  * POST /api/otp/send
- * Body: { phone: string }  (E.164, e.g. "+2290142077548")
+ * Body: { phone: string, language?: "en" | "fr" }  (E.164, e.g. "+2290142077548")
  * Returns: { token, expiresAt }
  *
  * The verification code never leaves the server: it is generated here, sent via
@@ -15,10 +15,12 @@ import { isE164, maskPhoneNumber } from "@/lib/phone";
  */
 export async function POST(request: Request) {
   let phone: string;
+  let language: "en" | "fr" = "fr";
 
   try {
-    const body = (await request.json()) as { phone?: unknown };
+    const body = (await request.json()) as { phone?: unknown; language?: unknown };
     phone = String(body.phone ?? "").trim();
+    language = body.language === "en" ? "en" : "fr";
   } catch {
     return json({ error: "Invalid request body." }, 400);
   }
@@ -50,7 +52,9 @@ export async function POST(request: Request) {
     // 160 to 70 chars and doubles the cost.
     await getSmsProvider().send({
       to: phone,
-      body: `ZENO: your verification code is ${code}. It expires in 5 minutes.`,
+      body: language === "fr"
+        ? `ZENO : votre code de verification est ${code}. Il expire dans 5 minutes.`
+        : `ZENO: your verification code is ${code}. It expires in 5 minutes.`,
     });
 
     return json({ token, expiresAt });

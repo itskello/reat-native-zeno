@@ -1,5 +1,6 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { useEffect, useRef } from "react";
-import { Animated, Text, View } from "react-native";
+import { Animated, View } from "react-native";
 
 type CopyToastProps = {
   /** Controls visibility of the toast */

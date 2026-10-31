@@ -1,10 +1,11 @@
 ﻿import { images } from "@/constants/images";
 import { SettingsSkeleton } from "@/components/ui/Skeleton";
 import { useInitialLoading } from "@/lib/useInitialLoading";
+import { useLanguageStore, type AppLanguage } from "@/store/language-store";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type LanguageOption = {
@@ -14,21 +15,18 @@ type LanguageOption = {
 };
 
 const LANGUAGES: LanguageOption[] = [
-  { id: "fr", name: "French", nativeName: "Français (FCFA / Afrique West)" },
-  { id: "en", name: "English", nativeName: "English (Global)" },
+  { id: "fr", name: "Français", nativeName: "Français" },
+  { id: "en", name: "English", nativeName: "English" },
 ];
 
 export default function LanguageScreen() {
   const insets = useSafeAreaInsets();
   const isInitialLoading = useInitialLoading(300);
-  const [selectedLanguage, setSelectedLanguage] = useState("fr");
+  const selectedLanguage = useLanguageStore((state) => state.language);
+  const setLanguage = useLanguageStore((state) => state.setLanguage);
 
   const handleSelectLanguage = (lang: LanguageOption) => {
-    setSelectedLanguage(lang.id);
-    Alert.alert(
-      "Langue modifiée",
-      `La langue de l'application a été définie sur : ${lang.nativeName}`
-    );
+    void setLanguage(lang.id as AppLanguage);
   };
 
   if (isInitialLoading) {
@@ -62,7 +60,7 @@ export default function LanguageScreen() {
             allowFontScaling={false}
             className="ml-4 font-bold text-[22px] text-zeno-text-primary"
           >
-            Langue / Language
+            {selectedLanguage === "fr" ? "Langue" : "Language"}
           </Text>
         </View>
 
@@ -76,13 +74,13 @@ export default function LanguageScreen() {
               allowFontScaling={false}
               className="font-bold text-[22px] text-zeno-text-primary"
             >
-              Choisir la langue
+              {selectedLanguage === "fr" ? "Choisir la langue" : "Choose your language"}
             </Text>
             <Text
               allowFontScaling={false}
               className="mt-1 font-medium text-[15px] text-zeno-text-secondary"
             >
-              Sélectionnez la langue d'affichage de votre application ZENO.
+              {selectedLanguage === "fr" ? "Sélectionnez la langue d'affichage de votre application ZENO." : "Choose the display language for your ZENO app."}
             </Text>
           </View>
 

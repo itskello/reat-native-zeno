@@ -1,3 +1,4 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { BellIcon } from "@/components/ui/BellIcon";
 import { WalletHomeSkeleton } from "@/components/ui/Skeleton";
 import { TransactionItem } from "@/components/wallet/TransactionItem";
@@ -14,7 +15,7 @@ import { useWalletStore } from "@/store/wallet-store";
 import { useUser } from "@clerk/clerk-expo";
 import { Image } from "expo-image";
 import { useCallback, useEffect } from "react";
-import { Pressable, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
     interpolate,

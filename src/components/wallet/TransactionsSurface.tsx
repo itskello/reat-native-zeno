@@ -1,3 +1,5 @@
+import { showLocalizedAlert } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
 import {
   CardIcon,
@@ -13,28 +15,43 @@ import { images } from "@/constants/images";
 import { formatAmount } from "@/data/currencies";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useWalletNav } from "@/store/wallet-nav";
+import { useLanguageStore } from "@/store/language-store";
 import { colors } from "@/theme/colors";
 import { router } from "expo-router";
 import type { Transaction } from "@/types/wallet";
 import { Image } from "expo-image";
-import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useMemo, useState } from "react";
 import {
-  Alert,
-  InteractionManager,
   Modal,
   Pressable,
   ScrollView,
   Share,
-  Text,
-  View,
-} from "react-native";
-import { TransactionsSkeleton } from "@/components/ui/Skeleton";
+
+  View} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type FilterTab = "all" | "received" | "sent" | "card";
 
 /** Static separator — must NOT be an inline function or it remounts on every render. */
 const RowSeparator = () => <View style={{ height: 1, backgroundColor: "#F3F4F6", marginHorizontal: 4 }} />;
+
+function formatTransactionDate(
+  isoDate: string,
+  language: "en" | "fr",
+  includeTime: boolean,
+) {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) {
+    return language === "fr" ? "Date inconnue" : "Unknown date";
+  }
+
+  return new Intl.DateTimeFormat(language === "fr" ? "fr-FR" : "en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    ...(includeTime ? { hour: "numeric", minute: "2-digit" } : {}),
+  }).format(date);
+}
 
 type TransactionsSurfaceProps = {
   contentTopGap: number;
@@ -46,22 +63,12 @@ type TransactionsSurfaceProps = {
  */
 export function TransactionsSurface({ contentTopGap }: TransactionsSurfaceProps) {
   const insets = useSafeAreaInsets();
+  const language = useLanguageStore((state) => state.language);
   const goHome = useWalletNav((s) => s.goHome);
   const transactions = useTransactionStore((s) => s.transactions);
 
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-  // Defer rendering the list until after the slide-in animation completes.
-  // This prevents the JS thread from animating + rendering simultaneously.
-  const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    const task = InteractionManager.runAfterInteractions(() => {
-      setIsReady(true);
-    });
-    return () => task.cancel();
-  }, []);
-
   const handleSetTab = useCallback((tab: FilterTab) => setActiveTab(tab), []);
   const handleSelectTx = useCallback((tx: Transaction) => setSelectedTx(tx), []);
   const handleCloseTx = useCallback(() => setSelectedTx(null), []);
@@ -93,7 +100,7 @@ export function TransactionsSurface({ contentTopGap }: TransactionsSurfaceProps)
   const groupedByDate = useMemo(() => {
     const groups: { date: string; items: Transaction[] }[] = [];
     filteredTransactions.forEach((tx) => {
-      const date = tx.dateLabel || "Date inconnue";
+      const date = formatTransactionDate(tx.createdAt, language, false);
       const existing = groups.find((g) => g.date === date);
       if (existing) {
         existing.items.push(tx);
@@ -102,7 +109,7 @@ export function TransactionsSurface({ contentTopGap }: TransactionsSurfaceProps)
       }
     });
     return groups;
-  }, [filteredTransactions]);
+  }, [filteredTransactions, language]);
 
   return (
     <View
@@ -146,9 +153,7 @@ export function TransactionsSurface({ contentTopGap }: TransactionsSurfaceProps)
       </View>
 
       {/* ── Transaction List — grouped by date ── */}
-      {!isReady ? (
-        <TransactionsSkeleton />
-      ) : groupedByDate.length === 0 ? (
+      {groupedByDate.length === 0 ? (
         <View className="mt-12 items-center justify-center py-10">
           <Text
             allowFontScaling={false}
@@ -175,7 +180,7 @@ export function TransactionsSurface({ contentTopGap }: TransactionsSurfaceProps)
 
       {/* Transaction Detail Modal */}
       {selectedTx && (
-        <TransactionDetailModal
+          <TransactionDetailModal
           transaction={selectedTx}
           onClose={handleCloseTx}
         />
@@ -363,11 +368,12 @@ function TransactionDetailModal({
   onClose: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const language = useLanguageStore((state) => state.language);
   const isIncoming = transaction.direction === "in";
   const currency = transaction.currency || "USD";
 
   const shortId = transaction.shortId || `${transaction.id.slice(0, 4)}...${transaction.id.slice(-4)}`;
-  const timeLabel = transaction.timeLabel || `${transaction.dateLabel || "Aujourd'hui"}`;
+  const timeLabel = formatTransactionDate(transaction.createdAt, language, true);
   const partyName = transaction.recipientOrSender || transaction.title;
   const feeAmount = transaction.fee ?? 0;
   const totalAmount = transaction.totalAmount ?? (transaction.amount + feeAmount);
@@ -378,7 +384,7 @@ function TransactionDetailModal({
 
   const handleCopyId = () => {
     setCopied(true);
-    Alert.alert("Copié !", `ID de transaction copié: ${transaction.reference || transaction.id}`);
+    showLocalizedAlert("Copié !", `ID de transaction copié: ${transaction.reference || transaction.id}`);
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -397,7 +403,7 @@ function TransactionDetailModal({
   const handleReportProblem = () => {
     // Build a pre-filled message with all the transaction context
     const txId = transaction.reference || transaction.id;
-    const txDate = transaction.timeLabel || transaction.dateLabel || "N/A";
+    const txDate = timeLabel;
     const txAmount = `${transaction.amount} ${transaction.currency || "USD"}`;
     const txBeneficiary = transaction.recipientOrSender || transaction.title;
 

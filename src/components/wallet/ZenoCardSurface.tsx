@@ -1,3 +1,4 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { CloseIcon } from "@/components/ui/CloseIcon";
 import { EyeIcon } from "@/components/ui/EyeIcon";
 import { images } from "@/constants/images";
@@ -16,7 +17,7 @@ import { useTransactionStore } from "@/store/transaction-store";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@clerk/clerk-expo";
 import { isCardSandboxEnabled, virtualCardService, type CardBalanceResult, type VirtualCardOverview } from "@/features/virtual-card/card-service";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { withSpring } from "react-native-reanimated";
 
 type ZenoCardSurfaceProps = {

@@ -11,8 +11,8 @@ import { create } from "zustand";
  */
 
 const PLACEHOLDER_WALLET: Wallet = {
-  balance: 5000, // XOF has no minor unit; whole number.
-  currency: "XOF",
+  balance: 0,
+  currency: "USD",
 };
 
 type WalletState = {
@@ -21,6 +21,8 @@ type WalletState = {
   /** Whether the balance is masked behind the eye toggle. */
   isBalanceHidden: boolean;
   loadWallet: () => Promise<void>;
+  /** Change the demo wallet denomination only while its balance is zero. */
+  setEmptyWalletCurrency: (currency: Wallet["currency"]) => boolean;
   toggleBalanceVisibility: () => void;
 };
 
@@ -32,6 +34,15 @@ export const useWalletStore = create<WalletState>((set) => ({
     set({ isLoading: true });
     // TODO: fetch the real balance from the backend and set it here.
     set({ wallet: PLACEHOLDER_WALLET, isLoading: false });
+  },
+  setEmptyWalletCurrency: (currency) => {
+    let changed = false;
+    set((state) => {
+      if (!state.wallet || state.wallet.balance !== 0) return state;
+      changed = true;
+      return { wallet: { ...state.wallet, currency } };
+    });
+    return changed;
   },
   toggleBalanceVisibility: () =>
     set((state) => ({ isBalanceHidden: !state.isBalanceHidden })),

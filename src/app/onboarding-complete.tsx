@@ -88,8 +88,11 @@ export default function OnboardingCompleteScreen() {
 
   useEffect(() => {
     if (isReady) {
-      // Replace the onboarding history with the wallet as the authenticated root.
-      router.dismissAll();
+      // Clear onboarding history when it exists. Some entry paths mount this
+      // screen as the root route, where POP_TO_TOP would be unhandled.
+      if (router.canDismiss()) {
+        router.dismissAll();
+      }
       router.replace("/wallet");
     }
   }, [isReady]);

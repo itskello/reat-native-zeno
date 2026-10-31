@@ -1,3 +1,4 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 /**
  * VirtualCardFlowModal
  *
@@ -29,6 +30,7 @@ import {
     type VirtualCardStatus,
 } from "@/features/virtual-card/card-service";
 import { recordCardMovement } from "@/features/virtual-card/record-card-activity";
+import { useLanguageStore } from "@/store/language-store";
 import { useSecurityStore } from "@/store/security-store";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -40,10 +42,9 @@ import {
     ActivityIndicator,
     BackHandler,
     Pressable,
-    Text,
+
     View,
-    useWindowDimensions,
-} from "react-native";
+    useWindowDimensions} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type CardFlowPanel =
@@ -60,7 +61,6 @@ type Props = {
   onClose: () => void;
   onPanelChange: (panel: CardFlowPanel) => void;
   cardBalance: string;
-  fundingWalletBalance?: string;
   /** Called after freeze/unfreeze succeeds so ZenoCardSurface can update visuals. */
   onCardStatusChange?: (status: VirtualCardStatus) => void;
   onBalanceChange?: (result: CardBalanceResult) => void;
@@ -78,7 +78,6 @@ export function VirtualCardFlowModal({
   onClose,
   onPanelChange,
   cardBalance,
-  fundingWalletBalance,
   onCardStatusChange,
   onBalanceChange,
 }: Props) {
@@ -316,7 +315,6 @@ export function VirtualCardFlowModal({
               <TopUpPanel
                 amount={topupAmount}
                 cardBalance={cardBalance}
-                fundingWalletBalance={fundingWalletBalance}
                 direction={transferDirection}
                 onNumpad={handleNumpad}
                 onBack={handleBack}
@@ -427,7 +425,6 @@ export function VirtualCardFlowModal({
 function TopUpPanel({
   amount,
   cardBalance,
-  fundingWalletBalance,
   direction,
   onNumpad,
   onBack,
@@ -436,7 +433,6 @@ function TopUpPanel({
 }: {
   amount: string;
   cardBalance: string;
-  fundingWalletBalance?: string;
   direction: "topup" | "withdraw";
   onNumpad: (key: string) => void;
   onBack: () => void;
@@ -463,24 +459,28 @@ function TopUpPanel({
 
       {/* Amount display */}
       <View className="mt-4 items-center">
-        <Text
-          allowFontScaling={false}
-          className="text-[64px] font-bold leading-[72px]"
-          style={{ color: DARK }}
-        >
-          {amount.length > 0 ? `$${amount}` : "$"}
-        </Text>
+        <View className="flex-row items-start justify-center">
+          <Text
+            allowFontScaling={false}
+            className="mr-1 mt-2 text-[24px] font-bold leading-[30px]"
+            style={{ color: DARK }}
+          >
+            $
+          </Text>
+          <Text
+            allowFontScaling={false}
+            className="text-[64px] font-bold leading-[72px]"
+            style={{ color: DARK }}
+          >
+            {amount || "00"}
+          </Text>
+        </View>
         <Text allowFontScaling={false} className="mt-1 text-[13px]" style={{ color: DARK + "99" }}>
           Current card balance: <Text className="font-semibold" style={{ color: DARK }}>${cardBalance}</Text>
         </Text>
         <Text allowFontScaling={false} className="mt-1 text-[14px]" style={{ color: DARK + "99" }}>
-          {direction === "topup" ? "Funded from your ZENO Wallet" : "Transfer to your ZENO Wallet"}
+          {direction === "withdraw" ? "Transfer to your ZENO Wallet" : null}
         </Text>
-        {direction === "topup" && fundingWalletBalance ? (
-          <Text allowFontScaling={false} className="mt-1 text-[13px]" style={{ color: DARK + "99" }}>
-            {isCardSandboxEnabled ? "Demo wallet balance" : "Wallet balance"}: ${fundingWalletBalance}
-          </Text>
-        ) : null}
 
         {/* Virtual Card chip */}
         <View
@@ -667,6 +667,7 @@ function CardDetailsPanel({
   details: VirtualCardDetails;
   onClose: () => void;
 }) {
+  const language = useLanguageStore((state) => state.language);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const handleCopy = async (value: string, fieldName: string) => {
@@ -702,7 +703,7 @@ function CardDetailsPanel({
         </View>
         <View className="mt-4 gap-y-3">
           <DetailRow
-            label="Card Number"
+            label={language === "fr" ? "Numéro de carte" : "Card Number"}
             value={cardNumber}
             onCopy={() => handleCopy(cardNumber, "Card Number")}
           />
@@ -712,7 +713,7 @@ function CardDetailsPanel({
             onCopy={() => handleCopy(details.cvc, "CVC")}
           />
           <DetailRow
-            label="Expiry Date"
+            label={language === "fr" ? "Date d'expiration" : "Expiry Date"}
             value={details.expiry}
             onCopy={() => handleCopy(details.expiry, "Expiry")}
           />

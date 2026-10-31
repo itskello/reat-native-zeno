@@ -1,7 +1,8 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { images } from "@/constants/images";
 import { Image } from "expo-image";
 import { useEffect, useMemo, useRef } from "react";
-import { Animated, Pressable, Text, View } from "react-native";
+import { Animated, Pressable, View } from "react-native";
 
 export const PIN_LENGTH = 6;
 

@@ -1,3 +1,5 @@
+import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { MailIcon } from "@/components/ui/MailIcon";
 import { images } from "@/constants/images";
 import { usePasswordReset } from "@/lib/use-password-reset";
@@ -9,10 +11,8 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+
+  View} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;

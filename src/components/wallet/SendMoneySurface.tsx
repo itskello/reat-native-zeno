@@ -1,14 +1,21 @@
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { Chevron } from "@/components/ui/Chevron";
 import { CloseIcon } from "@/components/ui/CloseIcon";
 import { PersonPlusIcon } from "@/components/ui/PersonPlusIcon";
+import { TransferFlow } from "@/features/transfers/TransferFlow";
 import { images } from "@/constants/images";
 import { springs } from "@/constants/motion";
+import { getFinancialTitleSegments } from "@/lib/localization";
 import { useRecipientStore, type Recipient } from "@/store/recipient-store";
+import { transferService } from "@/features/transfers/transfer-service";
 import { cardDragY } from "@/store/wallet-gesture";
 import { useWalletNav } from "@/store/wallet-nav";
+import { useLanguageStore } from "@/store/language-store";
 import { colors } from "@/theme/colors";
+import { useAuth } from "@clerk/clerk-expo";
 import { Image } from "expo-image";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Pressable, ScrollView, Text as NativeText, View } from "react-native";
 import { withSpring } from "react-native-reanimated";
 
 type SendMoneySurfaceProps = {
@@ -30,8 +37,33 @@ const LOGO_ASPECT = 3380 / 1424;
  *   an opaque rect here would cover the siphon neck with a hard edge.
  */
 export function SendMoneySurface({ contentTopGap }: SendMoneySurfaceProps) {
+  const language = useLanguageStore((state) => state.language);
+  const [titleMuted, titleStrong] = getFinancialTitleSegments("sendMoney", language);
+  const sendSubtitle = language === "fr" ? "Choisissez comment" : "Choose how to";
   const goHome = useWalletNav((s) => s.goHome);
   const recent = useRecipientStore((s) => s.recent);
+  const setRecipients = useRecipientStore((s) => s.setRecipients);
+  const { getToken, userId } = useAuth();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+  const [flow, setFlow] = useState<"zeno" | "mobile" | null>(null);
+  const [selectedRecipient, setSelectedRecipient] = useState<Recipient | undefined>();
+
+  useEffect(() => {
+    let isCurrent = true;
+    setRecipients([]);
+    void (async () => {
+      try {
+        const token = await getTokenRef.current();
+        if (!token || !isCurrent) return;
+        const result = await transferService.listRecipients(token);
+        if (isCurrent && result.ok) setRecipients(result.data.recipients);
+      } catch {
+        // Loading contacts is best effort; keep the surface usable if it fails.
+      }
+    })();
+    return () => { isCurrent = false; };
+  }, [setRecipients, userId]);
 
   const close = () => {
     cardDragY.value = withSpring(0, springs.liquid);
@@ -41,12 +73,26 @@ export function SendMoneySurface({ contentTopGap }: SendMoneySurfaceProps) {
   // The island room now closes only through the dismiss button, so its inner
   // content can be scrolled and the user keeps full control of the room.
 
-  // TODO: route to the ZENO-user transfer flow (search → amount → review →
-  // PIN → processing → success), the Mobile Money flow, and the saved-recipient
-  // search. Each is its own room and lands with its own feature prompt.
-  const openZenoUserFlow = (_recipient?: Recipient) => {};
-  const openMobileMoneyFlow = () => {};
-  const openAddRecipient = () => {};
+  const openZenoUserFlow = (recipient?: Recipient) => {
+    setSelectedRecipient(recipient);
+    setFlow("zeno");
+  };
+  const openMobileMoneyFlow = () => {
+    setSelectedRecipient(undefined);
+    setFlow("mobile");
+  };
+  const openAddRecipient = () => openZenoUserFlow();
+
+  if (flow) {
+    return (
+      <TransferFlow
+        contentTopGap={contentTopGap}
+        flow={flow}
+        initialRecipient={selectedRecipient}
+        onBackToMenu={() => setFlow(null)}
+      />
+    );
+  }
 
   return (
     <ScrollView
@@ -70,32 +116,32 @@ export function SendMoneySurface({ contentTopGap }: SendMoneySurfaceProps) {
 
         {/* Title — first word dimmed, second emphasised (locked typography). */}
         <View className="mt-4 flex-row items-baseline px-11">
-          <Text
+          <NativeText
             allowFontScaling={false}
             className="font-semibold text-[32px] text-white/40"
           >
-            Send{" "}
-          </Text>
-          <Text
+            {titleMuted}{" "}
+          </NativeText>
+          <NativeText
             allowFontScaling={false}
             className="font-bold text-[32px] text-white"
           >
-            Money
-          </Text>
+            {titleStrong}
+          </NativeText>
         </View>
 
-        <Text
+        <NativeText
           allowFontScaling={false}
-          className="mt-9 px-11 text-[24px] leading-[31px] text-white/85"
+          className="mt-9 px-11 text-[24px] leading-[27px] text-white/85"
         >
-          Choose How You{"\n"}Want To Send Money
-        </Text>
+          {sendSubtitle}
+        </NativeText>
 
         {/* The three ways to send. */}
         <View className="mt-11 px-11">
           <SendOption
-            title="Zeno User"
-            subtitle="Instant Transfer To Another ZENO Account"
+            title="ZENO User"
+            subtitle="Instant transfer"
             badge="Free"
             circleColor={colors.zenoBlue}
             onPress={() => openZenoUserFlow()}
@@ -109,7 +155,7 @@ export function SendMoneySurface({ contentTopGap }: SendMoneySurfaceProps) {
 
           <SendOption
             title="Mobile Money"
-            subtitle="Send To Any Mobile Money Number"
+            subtitle={language === "fr" ? "Vers n’importe quel numéro" : "Send to any number"}
             circleColor={colors.zenoGreen}
             onPress={openMobileMoneyFlow}
           >
@@ -123,7 +169,7 @@ export function SendMoneySurface({ contentTopGap }: SendMoneySurfaceProps) {
 
           <SendOption
             title="Withdraw Money"
-            subtitle="Transfer Your Balance To Mobile Money"
+            subtitle="To Mobile Money"
             circleColor={colors.zenoMint}
             onPress={() => useWalletNav.getState().navigateTo("WITHDRAW")}
           >
@@ -186,7 +232,7 @@ export function SendMoneySurface({ contentTopGap }: SendMoneySurfaceProps) {
           <Pressable
             onPress={openAddRecipient}
             accessibilityRole="button"
-            accessibilityLabel="Add new recipient"
+            accessibilityLabel={language === "fr" ? "Ajouter un bénéficiaire" : "Add New Recipient"}
             className="h-[54px] flex-row items-center rounded-full bg-zeno-sky pl-1.5 pr-6 active:opacity-90"
           >
             <View className="h-[42px] w-[42px] items-center justify-center rounded-full bg-zeno-mint-soft">
@@ -194,7 +240,8 @@ export function SendMoneySurface({ contentTopGap }: SendMoneySurfaceProps) {
             </View>
             <Text
               allowFontScaling={false}
-              className="ml-4 flex-1 font-bold text-[19px] text-zeno-text-primary"
+              numberOfLines={1}
+              className="ml-3 min-w-0 flex-1 font-bold text-[16px] text-zeno-text-primary"
             >
               Add New Recipient
             </Text>

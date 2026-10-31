@@ -1,17 +1,12 @@
+import { showLocalizedAlert } from "@/components/ui/LocalizedText";
+import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
+import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { CloseIcon } from "@/components/ui/CloseIcon";
 import { EyeIcon } from "@/components/ui/EyeIcon";
 import { useUser } from "@clerk/clerk-expo";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    Pressable,
-    ScrollView,
-    Text,
-    TextInput,
-    View,
- } from "react-native";
+    ActivityIndicator, Modal, Pressable, ScrollView, View } from "react-native";
 
 type UpdatePasswordModalProps = {
   visible: boolean;
@@ -35,18 +30,18 @@ export function UpdatePasswordModal({
 
   const handleUpdatePassword = async () => {
     if (!currentPassword) {
-      Alert.alert("Erreur", "Veuillez saisir votre mot de passe actuel.");
+      showLocalizedAlert("Erreur", "Veuillez saisir votre mot de passe actuel.");
       return;
     }
     if (newPassword.length < 8) {
-      Alert.alert(
+      showLocalizedAlert(
         "Erreur",
         "Le nouveau mot de passe doit contenir au moins 8 caractères."
       );
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert(
+      showLocalizedAlert(
         "Erreur",
         "Le nouveau mot de passe et sa confirmation ne correspondent pas."
       );
@@ -61,13 +56,13 @@ export function UpdatePasswordModal({
           newPassword,
         });
       }
-      Alert.alert("Succès", "Votre mot de passe a été mis à jour avec succès.");
+      showLocalizedAlert("Succès", "Votre mot de passe a été mis à jour avec succès.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       onClose();
     } catch (err: any) {
-      Alert.alert(
+      showLocalizedAlert(
         "Mot de passe mis à jour",
         "Votre mot de passe a été mis à jour avec succès pour votre compte ZENO."
       );
