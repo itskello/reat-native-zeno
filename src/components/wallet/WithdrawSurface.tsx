@@ -1,4 +1,6 @@
 import { showLocalizedAlert } from "@/components/ui/LocalizedText";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
+import { PinProcessingOverlay } from "@/components/auth/PinProcessingOverlay";
 import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { Chevron } from "@/components/ui/Chevron";
@@ -11,6 +13,7 @@ import { getProvidersForCountry } from "@/data/mobile-money-providers";
 import { cardDragY } from "@/store/wallet-gesture";
 import { useWalletNav } from "@/store/wallet-nav";
 import { useWalletStore } from "@/store/wallet-store";
+import { concealMoney } from "@/lib/money-visibility";
 import { useLanguageStore } from "@/store/language-store";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useSecurityStore } from "@/store/security-store";
@@ -19,10 +22,10 @@ import { colors } from "@/theme/colors";
 import { supportedCountries } from "@/data/countries";
 import type { CountryId, MobileMoneyProvider, SupportedCountry } from "@/types/content";
 import * as Crypto from "expo-crypto";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import { Image } from "expo-image";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text as NativeText, View } from "react-native";
+import { Pressable, ScrollView, Text as NativeText, View } from "react-native";
 import { withSpring } from "react-native-reanimated";
 
 type WithdrawSurfaceProps = {
@@ -58,6 +61,7 @@ const DEFAULT_PAYOUT_COUNTRY: CountryId = "benin";
 export function WithdrawSurface({ contentTopGap }: WithdrawSurfaceProps) {
   const goHome = useWalletNav((s) => s.goHome);
   const wallet = useWalletStore((s) => s.wallet);
+  const isBalanceHidden = useWalletStore((s) => s.isBalanceHidden);
   const addTransaction = useTransactionStore((s) => s.addTransaction);
   const verifyPin = useSecurityStore((s) => s.verifyPin);
   const hasPin = useSecurityStore((s) => s.hasPin);
@@ -174,6 +178,7 @@ export function WithdrawSurface({ contentTopGap }: WithdrawSurfaceProps) {
         setAmount(fractionParts.length ? `${whole}.${fraction}` : whole);
       }}
       amountValue={amountValue}
+      isBalanceHidden={isBalanceHidden}
       currencyCode={wallet?.currency ?? "XOF"}
       payoutCountry={payoutCountry}
       countries={payoutCountries}
@@ -188,7 +193,7 @@ export function WithdrawSurface({ contentTopGap }: WithdrawSurfaceProps) {
         setPhone("");
       }}
       balanceLabel={
-        wallet ? formatAmount(wallet.balance, wallet.currency) : "—"
+        wallet ? concealMoney(formatAmount(wallet.balance, wallet.currency), isBalanceHidden) : "—"
       }
       providers={providers}
       providerId={providerId}
@@ -242,7 +247,7 @@ export function WithdrawSurface({ contentTopGap }: WithdrawSurfaceProps) {
             </View>
 
             <ConfirmSheet
-              amountLabel={`${formatValue(amountValue)} ${currency?.symbol ?? ""}`}
+              amountLabel={concealMoney(`${formatValue(amountValue)} ${currency?.symbol ?? ""}`, isBalanceHidden)}
               feeLabel="À confirmer par le serveur"
               totalLabel="À confirmer par le serveur"
               error={error}
@@ -355,6 +360,7 @@ function AmountPanel({
   amount,
   onAmountChange,
   amountValue,
+  isBalanceHidden,
   currencyCode,
   payoutCountry,
   countries,
@@ -373,6 +379,7 @@ function AmountPanel({
   amount: string;
   onAmountChange: (value: string) => void;
   amountValue: number;
+  isBalanceHidden: boolean;
   currencyCode: string;
   payoutCountry?: SupportedCountry;
   countries: SupportedCountry[];
@@ -411,6 +418,7 @@ function AmountPanel({
         <View className="h-full flex-1 flex-row items-center">
           <TextInput
             value={amount}
+            secureTextEntry={isBalanceHidden}
             onChangeText={onAmountChange}
             placeholder="0.0"
             placeholderTextColor="rgba(7,23,6,0.35)"
@@ -467,7 +475,7 @@ function AmountPanel({
           allowFontScaling={false}
           className="flex-1 font-semibold text-[24px] text-zeno-text-primary/45"
         >
-          {receivedValue}
+          {concealMoney(receivedValue, isBalanceHidden)}
         </Text>
         {payoutCountry ? <Image source={payoutCountry.flag} style={{ width: 32, height: 32, borderRadius: 16 }} contentFit="cover" /> : null}
         <Text
@@ -748,7 +756,7 @@ function PinPanel({
         ))}
       </View>
       {error ? <Text accessibilityRole="alert" className="mt-4 text-center text-[14px] text-red-300">{error}</Text> : null}
-      {busy ? <ActivityIndicator className="mt-4" color={colors.zenoGreen} /> : null}
+      <PinProcessingOverlay visible={busy} variant="green" />
       <View className="flex-1" />
       <View className="flex-row flex-wrap">
         {keys.map((key, index) => (
@@ -944,7 +952,7 @@ function PrimaryButton({
         isDisabled ? "" : "active:opacity-90"
       }`}
     >
-      {busy ? <ActivityIndicator color={tone === "lime" ? colors.zenoDark : "#FFFFFF"} /> : <Text allowFontScaling={false} className={`font-bold text-[22px] ${text}`}>{label}</Text>}
+      {busy ? <ZenoLoading variant={tone === "lime" ? "green" : "blue"} size={24} /> : <Text allowFontScaling={false} className={`font-bold text-[22px] ${text}`}>{label}</Text>}
     </Pressable>
   );
 }

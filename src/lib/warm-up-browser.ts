@@ -18,5 +18,3 @@ export function useWarmUpBrowser() {
     };
   }, []);
 }
-
-WebBrowser.maybeCompleteAuthSession();

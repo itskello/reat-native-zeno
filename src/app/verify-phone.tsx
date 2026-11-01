@@ -2,7 +2,8 @@ import { VerifyCodeScreen } from "@/components/auth/VerifyCodeScreen";
 import { toE164 } from "@/lib/phone";
 import { usePhoneVerification } from "@/lib/use-phone-verification";
 import { useOnboardingStore } from "@/store/onboarding-store";
-import { useSignUp, useUser } from "@clerk/clerk-expo";
+import { useSignUp } from "@clerk/expo/legacy";
+import { useUser } from "@clerk/expo";
 import { router } from "expo-router";
 import { useCallback } from "react";
 

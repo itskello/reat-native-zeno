@@ -21,7 +21,7 @@ import { images } from "@/constants/images";
 import { useAppStore } from "@/store/app-store";
 import { useLanguageStore } from "@/store/language-store";
 import type { CountryId } from "@/types/content";
-import { useUser } from "@clerk/clerk-expo";
+import { useUser } from "@clerk/expo";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { memo, useCallback, useState } from "react";
@@ -171,12 +171,12 @@ export default function ProfileScreen() {
           >
             <View className="flex-1">
               <Text allowFontScaling={false} className="font-bold text-[18px] text-zeno-text-primary">
-                Identity verification
+                {selectedLanguage === "fr" ? "Vérification d’identité" : "Identity verification"}
               </Text>
               {kycStatus === "verified" ? (
-                <Text allowFontScaling={false} className="mt-1 text-[13px] text-zeno-text-secondary">Verified</Text>
+                <Text allowFontScaling={false} className="mt-1 text-[13px] text-zeno-text-secondary">{selectedLanguage === "fr" ? "Vérifiée" : "Verified"}</Text>
               ) : kycStatus === "pending" ? (
-                <Text allowFontScaling={false} className="mt-1 text-[13px] text-zeno-text-secondary">Verification pending</Text>
+                <Text allowFontScaling={false} className="mt-1 text-[13px] text-zeno-text-secondary">{selectedLanguage === "fr" ? "Vérification en cours" : "Verification pending"}</Text>
               ) : null}
             </View>
             {kycStatus === "verified" ? <VerifiedBadgeIcon size={28} /> : <ShieldOutlineIcon size={28} color="#0057FF" />}

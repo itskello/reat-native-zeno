@@ -17,9 +17,11 @@ import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 
 import { PIN_LENGTH } from "@/components/auth/PinPad";
 import { CloseIcon } from "@/components/ui/CloseIcon";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { CopyToast } from "@/components/ui/CopyToast";
 import { CopyIcon } from "@/components/ui/ProfileIcons";
 import { CardPinEntryScreen } from "@/components/wallet/CardPinEntryScreen";
+import { waitForPinLoading } from "@/components/auth/PinProcessingOverlay";
 import { images } from "@/constants/images";
 import { ZenoCardLogo } from "@/components/wallet/ZenoCardLogo";
 import {
@@ -32,14 +34,15 @@ import {
 import { recordCardMovement } from "@/features/virtual-card/record-card-activity";
 import { useLanguageStore } from "@/store/language-store";
 import { useSecurityStore } from "@/store/security-store";
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useWalletStore } from "@/store/wallet-store";
+import { concealMoney } from "@/lib/money-visibility";
+import { useAuth, useUser } from "@clerk/expo";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Clipboard from "expo-clipboard";
 import * as Crypto from "expo-crypto";
 import { Image } from "expo-image";
 import { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
     BackHandler,
     Pressable,
 
@@ -61,6 +64,7 @@ type Props = {
   onClose: () => void;
   onPanelChange: (panel: CardFlowPanel) => void;
   cardBalance: string;
+  fundingWalletBalance?: string;
   /** Called after freeze/unfreeze succeeds so ZenoCardSurface can update visuals. */
   onCardStatusChange?: (status: VirtualCardStatus) => void;
   onBalanceChange?: (result: CardBalanceResult) => void;
@@ -78,6 +82,7 @@ export function VirtualCardFlowModal({
   onClose,
   onPanelChange,
   cardBalance,
+  fundingWalletBalance = "0.00",
   onCardStatusChange,
   onBalanceChange,
 }: Props) {
@@ -85,8 +90,10 @@ export function VirtualCardFlowModal({
   const { height: windowHeight } = useWindowDimensions();
   const { getToken } = useAuth();
   const { user } = useUser();
+  const language = useLanguageStore((state) => state.language);
   const verifyPin = useSecurityStore((state) => state.verifyPin);
   const biometricEnabled = useSecurityStore((state) => state.biometricEnabled);
+  const isBalanceHidden = useWalletStore((state) => state.isBalanceHidden);
 
   const [pin, setPin] = useState("");
   const [details, setDetails] = useState<VirtualCardDetails | null>(null);
@@ -160,9 +167,11 @@ export function VirtualCardFlowModal({
       setError("Saisissez votre PIN à 6 chiffres.");
       return;
     }
+    const loadingStartedAt = Date.now();
     setBusy(true);
     const validPin = biometricAuthorized || await verifyPin(user.id, pin);
     if (!validPin) {
+      await waitForPinLoading(loadingStartedAt);
       setBusy(false);
       setPin("");
       setError("PIN incorrect. Réessayez.");
@@ -170,11 +179,13 @@ export function VirtualCardFlowModal({
     }
     const token = await getToken();
     if (!token && !isCardSandboxEnabled) {
+      await waitForPinLoading(loadingStartedAt);
       setBusy(false);
       setError("Reconnectez-vous pour afficher les données de la carte.");
       return;
     }
     const result = await virtualCardService.getDetails(token ?? "");
+    await waitForPinLoading(loadingStartedAt);
     setBusy(false);
     if (!result.ok) {
       setError(result.error);
@@ -265,6 +276,8 @@ export function VirtualCardFlowModal({
     onBalanceChange?.(result.data);
     recordCardMovement({
       amount: topupAmount,
+      walletBalance: result.data.walletBalance,
+      cardBalance: Number(result.data.cardBalance),
       direction: transferDirection,
       transactionId: result.data.transactionId,
       isSandbox: isCardSandboxEnabled,
@@ -314,7 +327,10 @@ export function VirtualCardFlowModal({
             >
               <TopUpPanel
                 amount={topupAmount}
+                isBalanceHidden={isBalanceHidden}
                 cardBalance={cardBalance}
+                fundingWalletBalance={fundingWalletBalance}
+                language={language}
                 direction={transferDirection}
                 onNumpad={handleNumpad}
                 onBack={handleBack}
@@ -332,6 +348,7 @@ export function VirtualCardFlowModal({
             >
               <TransferReviewPanel
                 amount={topupAmount}
+                isBalanceHidden={isBalanceHidden}
                 direction={transferDirection}
                 busy={busy}
                 error={error}
@@ -424,7 +441,10 @@ export function VirtualCardFlowModal({
 
 function TopUpPanel({
   amount,
+  isBalanceHidden,
   cardBalance,
+  fundingWalletBalance,
+  language,
   direction,
   onNumpad,
   onBack,
@@ -432,7 +452,10 @@ function TopUpPanel({
   insets,
 }: {
   amount: string;
+  isBalanceHidden: boolean;
   cardBalance: string;
+  fundingWalletBalance: string;
+  language: "en" | "fr";
   direction: "topup" | "withdraw";
   onNumpad: (key: string) => void;
   onBack: () => void;
@@ -472,14 +495,21 @@ function TopUpPanel({
             className="text-[64px] font-bold leading-[72px]"
             style={{ color: DARK }}
           >
-            {amount || "00"}
+            {concealMoney(amount || "00", isBalanceHidden)}
           </Text>
         </View>
         <Text allowFontScaling={false} className="mt-1 text-[13px]" style={{ color: DARK + "99" }}>
-          Current card balance: <Text className="font-semibold" style={{ color: DARK }}>${cardBalance}</Text>
+          {language === "fr"
+            ? direction === "topup" ? "Solde du Wallet principal : " : "Solde de la carte : "
+            : direction === "topup" ? "Main Wallet balance: " : "Card balance: "}
+          <Text className="font-semibold" style={{ color: DARK }}>
+            {concealMoney(`$${direction === "topup" ? fundingWalletBalance : cardBalance}`, isBalanceHidden)}
+          </Text>
         </Text>
         <Text allowFontScaling={false} className="mt-1 text-[14px]" style={{ color: DARK + "99" }}>
-          {direction === "withdraw" ? "Transfer to your ZENO Wallet" : null}
+          {direction === "withdraw"
+            ? language === "fr" ? "Transférer vers le Wallet ZENO" : "Transfer to your ZENO Wallet"
+            : null}
         </Text>
 
         {/* Virtual Card chip */}
@@ -495,7 +525,7 @@ function TopUpPanel({
             allowFontScaling={false}
             className="font-semibold text-[15px] text-white"
           >
-            Virtual Card
+            {language === "fr" ? "Carte virtuelle" : "Virtual Card"}
           </Text>
           <Text
             allowFontScaling={false}
@@ -539,6 +569,7 @@ function TopUpPanel({
 
 function TransferReviewPanel({
   amount,
+  isBalanceHidden,
   direction,
   busy,
   error,
@@ -547,6 +578,7 @@ function TransferReviewPanel({
   insets,
 }: {
   amount: string;
+  isBalanceHidden: boolean;
   direction: "topup" | "withdraw";
   busy: boolean;
   error: string | null;
@@ -607,7 +639,7 @@ function TransferReviewPanel({
             className="text-[22px] font-bold"
             style={{ color: DARK }}
           >
-            ${amount}
+            {concealMoney(`$${amount}`, isBalanceHidden)}
           </Text>
         </View>
       </View>
@@ -802,7 +834,7 @@ function MorePanel({
         </Text>
       ) : (
         <View className="flex-row items-center justify-center py-3">
-          <ActivityIndicator size="small" color={DARK} />
+          <ZenoLoading variant="green" size={24} />
           <Text className="ml-2 text-[13px] text-[#6B7280]">
             Loading card status…
           </Text>
@@ -890,7 +922,7 @@ function FreezePanel({
         style={{ backgroundColor: isFreeze ? "#FFE4E4" : LIME }}
       >
         {busy ? (
-          <ActivityIndicator color={isFreeze ? "#EF4444" : DARK} />
+          <ZenoLoading variant="green" size={24} />
         ) : (
           <Text
             allowFontScaling={false}

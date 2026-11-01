@@ -1,4 +1,6 @@
 import { postAuthenticated } from "@/lib/api";
+import { useWalletStore } from "@/store/wallet-store";
+import { isFinancialSandboxEnabled } from "@/features/wallet/financial-mode";
 import * as Crypto from "expo-crypto";
 
 export type VirtualCardDetails = {
@@ -28,10 +30,8 @@ export type CardBalanceResult = {
  * Development sandbox. It is intentionally in-memory and cannot move real
  * funds. Production always calls the authenticated server routes below.
  */
-export const isCardSandboxEnabled = __DEV__;
+export const isCardSandboxEnabled = isFinancialSandboxEnabled;
 
-let sandboxWalletCents = 10_000;
-let sandboxCardCents = 0;
 let sandboxCardStatus: VirtualCardStatus = "active";
 const sandboxOperations = new Map<string, ReturnType<typeof sandboxResult>>();
 
@@ -40,30 +40,16 @@ function asMoney(cents: number) {
 }
 
 function sandboxResult(amount: string, direction: "topup" | "withdraw") {
-  const cents = Math.round(Number(amount) * 100);
-  if (!Number.isSafeInteger(cents) || cents <= 0) {
-    return { ok: false as const, error: "Enter a valid amount." };
-  }
-  if (direction === "topup" && cents > sandboxWalletCents) {
-    return { ok: false as const, error: "Insufficient demo wallet balance." };
-  }
-  if (direction === "withdraw" && cents > sandboxCardCents) {
-    return { ok: false as const, error: "Insufficient demo card balance." };
-  }
-
-  if (direction === "topup") {
-    sandboxWalletCents -= cents;
-    sandboxCardCents += cents;
-  } else {
-    sandboxCardCents -= cents;
-    sandboxWalletCents += cents;
-  }
+  const movement = useWalletStore
+    .getState()
+    .moveDemoCardFunds(amount, direction);
+  if (!movement.ok) return movement;
 
   return {
     ok: true as const,
     data: {
-      cardBalance: asMoney(sandboxCardCents),
-      walletBalance: sandboxWalletCents / 100,
+      cardBalance: asMoney(Math.round(movement.data.cardBalance * 100)),
+      walletBalance: movement.data.walletBalance,
       transactionId: `demo-${Crypto.randomUUID()}`,
     },
   };
@@ -81,14 +67,15 @@ function runSandboxTransfer(amount: string, direction: "topup" | "withdraw", key
 export const virtualCardService = {
   getOverview(sessionToken: string) {
     if (isCardSandboxEnabled) {
+      const { wallet, demoCardBalance } = useWalletStore.getState();
       return Promise.resolve({
         ok: true as const,
         data: {
-          balance: asMoney(sandboxCardCents),
+          balance: asMoney(Math.round(demoCardBalance * 100)),
           currency: "USD" as const,
           last4: "4242",
           status: sandboxCardStatus,
-          fundingWalletBalance: asMoney(sandboxWalletCents),
+          fundingWalletBalance: asMoney(Math.round((wallet?.balance ?? 0) * 100)),
         },
       });
     }

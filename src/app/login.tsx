@@ -2,15 +2,17 @@ import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { EyeIcon } from "@/components/ui/EyeIcon";
 import { LockIcon } from "@/components/ui/LockIcon";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { images } from "@/constants/images";
 import { useEmailSignIn } from "@/lib/use-email-sign-in";
 import { useSocialSignIn } from "@/lib/use-social-sign-in";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -25,6 +27,7 @@ export default function LoginScreen() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isLoginPending, setIsLoginPending] = useState(false);
   const {
     signInWith,
     pendingProvider,
@@ -60,11 +63,14 @@ export default function LoginScreen() {
       return;
     }
 
+    setIsLoginPending(true);
     const ok = await signInWithPassword(identifier, password);
     if (ok) {
       // Gate the wallet behind the PIN the user set during onboarding.
       router.replace("/verify-pin");
+      return;
     }
+    setIsLoginPending(false);
   };
 
   return (
@@ -261,6 +267,17 @@ export default function LoginScreen() {
           </View>
         </View>
       </View>
+      <Modal
+        visible={isLoginPending || isSubmitting || pendingProvider !== null}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => undefined}
+      >
+        <View className="flex-1 items-center justify-center bg-black/50">
+          <ZenoLoading variant="blue" />
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }

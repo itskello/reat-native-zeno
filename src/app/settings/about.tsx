@@ -8,27 +8,35 @@ import { images } from "@/constants/images";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import * as Linking from "expo-linking";
-import { Pressable, ScrollView, View } from "react-native";
+import { useState } from "react";
+import { Modal, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLanguageStore } from "@/store/language-store";
 
 export default function AboutScreen() {
   const insets = useSafeAreaInsets();
   const isInitialLoading = useInitialLoading(300);
+  const language = useLanguageStore((state) => state.language);
+  const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
+  const appVersion = Constants.expoConfig?.version ?? "1.0.0";
 
   const handleWhatsNew = () => {
-    showLocalizedAlert(
-      "What's New in v1.0.0",
-      "🎉 Bienvenue sur ZENO!\n\n" +
-        "• Portefeuille digital avec dépôts et retraits Mobile Money\n" +
-        "• Transferts peer-to-peer entre utilisateurs ZENO\n" +
-        "• Création de liens de paiement\n" +
-        "• Carte virtuelle ZENO Visa\n" +
-        "• Paiements par QR Code\n" +
-        "• Vérification d'identité (KYC)\n" +
-        "• Support Bénin et Côte d'Ivoire",
-      [{ text: "OK" }]
-    );
+    setIsWhatsNewOpen(true);
   };
+
+  const whatsNewItems = language === "fr"
+    ? [
+        ["Portefeuille", "Consultez votre solde et vos opérations au même endroit."],
+        ["Transferts", "Envoyez de l’argent vers un compte ZENO ou Mobile Money."],
+        ["Paiements", "Créez un lien de paiement ou recevez de l’argent par QR code."],
+        ["Carte ZENO", "Gérez votre carte virtuelle directement depuis l’application."],
+      ]
+    : [
+        ["Wallet", "See your balance and activity in one place."],
+        ["Transfers", "Send money to a ZENO account or Mobile Money."],
+        ["Payments", "Create a payment link or receive money by QR code."],
+        ["ZENO Card", "Manage your virtual card right from the app."],
+      ];
 
   const handleRateUs = () => {
     showLocalizedAlert(
@@ -220,9 +228,70 @@ export default function AboutScreen() {
 
         </ScrollView>
         <Text allowFontScaling={false} className="pb-3 text-center text-[12px] font-medium text-zeno-text-secondary">
-          App version {Constants.expoConfig?.version ?? "1.0.0"}
+          App version {appVersion}
         </Text>
       </View>
+      <Modal
+        visible={isWhatsNewOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setIsWhatsNewOpen(false)}
+      >
+        <View className="flex-1 justify-end bg-[#071706]/55">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={language === "fr" ? "Fermer" : "Close"}
+            className="flex-1"
+            onPress={() => setIsWhatsNewOpen(false)}
+          />
+          <View className="max-h-[86%] rounded-t-[32px] bg-[#F4FAFF] px-5 pb-8 pt-3">
+            <View className="mb-5 h-1.5 w-10 self-center rounded-full bg-[#D6DEE7]" />
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View className="overflow-hidden rounded-[28px] bg-[#C7FF4A] p-5">
+                <View className="mb-5 flex-row items-center justify-between">
+                  <View className="h-11 w-11 items-center justify-center rounded-2xl bg-[#0A1712]">
+                    <Image source={images.logoDarkGreen} style={{ width: 31, height: 31, tintColor: "#C7FF4A" }} contentFit="contain" />
+                  </View>
+                  <View className="rounded-full bg-[#0A1712]/10 px-3 py-1.5">
+                    <Text allowFontScaling={false} className="text-[12px] font-bold text-[#0A1712]">ZENO · {appVersion}</Text>
+                  </View>
+                </View>
+                <Text allowFontScaling={false} className="text-[28px] font-bold leading-[34px] text-[#0A1712]">
+                  {language === "fr" ? "Quoi de neuf ?" : "What’s new?"}
+                </Text>
+                <Text allowFontScaling={false} className="mt-2 text-[15px] leading-[22px] text-[#0A1712]/75">
+                  {language === "fr" ? "Découvrez ce que vous pouvez faire avec ZENO." : "Discover what you can do with ZENO."}
+                </Text>
+              </View>
+
+              <View className="mt-5 rounded-[26px] bg-white px-4 py-1 shadow-sm">
+                {whatsNewItems.map(([title, description], index) => (
+                  <View key={title} className={`flex-row items-start py-4 ${index < whatsNewItems.length - 1 ? "border-b border-[#EEF1F4]" : ""}`}>
+                    <View className="mr-3 mt-0.5 h-9 w-9 items-center justify-center rounded-full bg-[#EAF6FF]">
+                      <Text allowFontScaling={false} className="text-[14px] font-bold text-[#0057FF]">{String(index + 1).padStart(2, "0")}</Text>
+                    </View>
+                    <View className="flex-1">
+                      <Text allowFontScaling={false} className="text-[16px] font-bold text-[#071706]">{title}</Text>
+                      <Text allowFontScaling={false} className="mt-1 text-[14px] leading-[20px] text-[#6B7280]">{description}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setIsWhatsNewOpen(false)}
+                className="mt-5 h-[56px] items-center justify-center rounded-full bg-[#0A1712] active:opacity-80"
+              >
+                <Text allowFontScaling={false} className="text-[16px] font-bold text-white">
+                  {language === "fr" ? "Continuer" : "Continue"}
+                </Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

@@ -12,7 +12,7 @@ import { cardDragY } from "@/store/wallet-gesture";
 import { useWalletNav } from "@/store/wallet-nav";
 import { useLanguageStore } from "@/store/language-store";
 import { colors } from "@/theme/colors";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, Text as NativeText, View } from "react-native";

@@ -1,12 +1,13 @@
 import { LocalizedText as Text, LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { SendUpIcon } from "@/components/ui/ProfileIcons";
 import { getAuthenticated, postAuthenticated } from "@/lib/api";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import { StreamChat, type Channel, type Event } from "stream-chat";
 import Svg, { Path } from "react-native-svg";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type AgentConversation = {
@@ -139,7 +140,7 @@ export default function SupportAgentScreen() {
       {error ? <View className="mx-4 mt-4 rounded-2xl bg-white p-4"><Text className="text-[14px] text-red-600">{error}</Text></View> : null}
 
       {!selected ? <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingVertical: 12 }}>
-        {loading && conversations.length === 0 ? <View className="items-center py-12"><ActivityIndicator color="#0A1712" /></View> : null}
+        {loading && conversations.length === 0 ? <ZenoLoading variant="blue" size={20} className="py-5" /> : null}
         {!loading && conversations.length === 0 && !error ? <Text className="py-12 text-center text-[14px] text-zeno-text-secondary">Aucune conversation en attente.</Text> : null}
         {conversations.map((conversation) => <Pressable key={conversation.id} onPress={() => void openConversation(conversation)} className="mb-3 rounded-[20px] bg-white p-4" style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
           <View className="flex-row items-center"><Text className="flex-1 text-[16px] font-bold text-zeno-text-primary">{conversation.customerName}</Text><Text className="rounded-full bg-[#C7FF4A] px-3 py-1 text-[11px] font-semibold text-[#0A1712]">{conversation.status === "human" ? "En cours" : "Nouveau"}</Text></View>
@@ -151,7 +152,7 @@ export default function SupportAgentScreen() {
         </ScrollView>
         <View className="flex-row items-end gap-x-2 border-t border-gray-100 bg-white px-4 pb-3 pt-3">
           <TextInput value={input} onChangeText={setInput} placeholder="Répondre…" multiline className="min-h-[40px] max-h-[100px] flex-1 rounded-[20px] bg-[#F4FAFF] px-4 py-2 text-[15px] text-zeno-text-primary" returnKeyType="send" onSubmitEditing={() => void sendReply()} blurOnSubmit={false} />
-          <Pressable disabled={!input.trim() || sending} onPress={() => void sendReply()} className="mb-0.5 h-10 w-10 items-center justify-center rounded-full bg-[#0A1712]">{sending ? <ActivityIndicator color="#fff" size="small" /> : <SendUpIcon size={17} color="#FFFFFF" />}</Pressable>
+          <Pressable disabled={!input.trim() || sending} onPress={() => void sendReply()} className="mb-0.5 h-10 w-10 items-center justify-center rounded-full bg-[#0A1712]">{sending ? <ZenoLoading variant="blue" size={22} color="#FFFFFF" /> : <SendUpIcon size={17} color="#FFFFFF" />}</Pressable>
         </View>
       </>}
     </View>

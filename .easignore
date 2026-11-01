@@ -6,9 +6,36 @@
 # Client config is passed through EXPO_PUBLIC_* env vars on EAS instead.
 .env
 .env.*.local
+node_modules/
+.expo/
+dist/
+web-build/
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.metro-health-check*
+.DS_Store
+*.pem
+.figma-cache/
+.claude/skills/
+.agents/AGENTS.md
+prompt1/ANIMIX/
+/ios
+/android
+expo-env.d.ts
+# Google OAuth credential downloads contain client secrets and are not app assets.
+assets/client_secret_*.json
 
 # Large design references — not needed to build the app.
-prompt aide/
-prompt1/
-prompt_material/
-prompts/
+prompt aide/**
+prompt1/**
+prompt_material/**
+prompts/**
+assets/03 · Carte/**
+assets/04 · Transferts/**
+assets/05 · Retraits/**
+assets/06 · Encaissements/**

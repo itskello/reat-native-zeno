@@ -1,7 +1,8 @@
 import { tokenCache } from "@/lib/token-cache";
 import { DeviceSessionReporter } from "@/components/auth/DeviceSessionReporter";
+import { SignOutLoadingOverlay } from "@/components/auth/SignOutLoadingOverlay";
 import { useLanguageStore } from "@/store/language-store";
-import { ClerkProvider } from "@clerk/clerk-expo";
+import { ClerkProvider } from "@clerk/expo";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -68,6 +69,7 @@ export default function RootLayout() {
             animationDuration: 450,
           }}
         />
+        <SignOutLoadingOverlay />
       </GestureHandlerRootView>
     </ClerkProvider>
   );

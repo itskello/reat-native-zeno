@@ -1,15 +1,16 @@
 import { LocalizedText as Text, showLocalizedAlert } from "@/components/ui/LocalizedText";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { images } from "@/constants/images";
 import { getDeviceSessions, revokeDeviceSession } from "@/features/security/session-service";
 import type { DeviceSession } from "@/features/security/session-service";
 import { useLanguageStore } from "@/store/language-store";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import * as Device from "expo-device";
 import * as SecureStore from "expo-secure-store";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, ScrollView, View } from "react-native";
+import { Platform, Pressable, ScrollView, View } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -227,12 +228,12 @@ export default function DevicesScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={language === "fr" ? "Déconnecter cet appareil" : "Sign out this device"}
                 >
-                  {revokingId === session.id ? <ActivityIndicator size="small" color="#0057FF" /> : <TrashIcon />}
+                  {revokingId === session.id ? <ZenoLoading variant="blue" size={24} /> : <TrashIcon />}
                 </Pressable>
               </View>
             ))}
 
-            {isLoading ? <ActivityIndicator className="my-4" color="#0057FF" /> : null}
+            {isLoading ? <ZenoLoading variant="blue" size={20} className="my-3" /> : null}
 
             {loadError ? (
               <View className="mb-4 rounded-[22px] bg-white p-5">

@@ -1,8 +1,10 @@
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { PIN_LENGTH, PinPad } from "@/components/auth/PinPad";
+import { waitForPinLoading } from "@/components/auth/PinProcessingOverlay";
 import { images } from "@/constants/images";
 import { useSecurityStore } from "@/store/security-store";
-import { useUser } from "@clerk/clerk-expo";
+import { registerTransactionPin } from "@/features/security/pin-service";
+import { useAuth, useUser } from "@clerk/expo";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
@@ -26,6 +28,7 @@ export default function ConfirmPinScreen() {
   const params = useLocalSearchParams<{ pin: string }>();
   const initialPin = params.pin || "";
   const { user } = useUser();
+  const { getToken } = useAuth();
   const setPin = useSecurityStore((state) => state.setPin);
 
   const [confirmPin, setConfirmPin] = useState("");
@@ -61,15 +64,36 @@ export default function ConfirmPinScreen() {
       return;
     }
 
-    // Persist the PIN locally, salted and hashed, so it can gate unlock at
-    // login. This is a local convenience lock — the backend stays the source of
-    // truth for financial actions. Backend PIN registration can follow later.
+    // Keep the local unlock PIN and enroll a separately hashed copy on the
+    // server so financial routes can validate it without trusting the device.
+    const loadingStartedAt = Date.now();
     setIsSaving(true);
     const saved = await setPin(user.id, confirmPin);
+    if (!saved) {
+      await waitForPinLoading(loadingStartedAt);
+      setIsSaving(false);
+      setError("We couldn't save your PIN. Please try again.");
+      return;
+    }
+
+    let registration:
+      | Awaited<ReturnType<typeof registerTransactionPin>>
+      | { ok: false; error: string };
+    try {
+      const token = await getToken();
+      registration = token
+        ? await registerTransactionPin(token, confirmPin)
+        : { ok: false, error: "We couldn't finish setting up your PIN. Please try again." };
+    } catch {
+      registration = { ok: false, error: "We couldn't finish setting up your PIN. Please try again." };
+    }
+    await waitForPinLoading(loadingStartedAt);
     setIsSaving(false);
 
-    if (!saved) {
-      setError("We couldn't save your PIN. Please try again.");
+    if (!registration.ok) {
+      setError(registration.error === "Un PIN de transaction est déjà configuré."
+        ? "A transaction PIN is already set for this account."
+        : "We couldn't finish setting up your PIN. Please try again.");
       return;
     }
 
@@ -123,7 +147,11 @@ export default function ConfirmPinScreen() {
         ) : null}
 
         <View className="mt-[56px] flex-1">
-          <PinPad value={confirmPin} onChange={handleChange} />
+          <PinPad
+            value={confirmPin}
+            onChange={handleChange}
+            busy={isSaving}
+          />
         </View>
 
         <Pressable

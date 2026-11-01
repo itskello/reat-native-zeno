@@ -17,7 +17,7 @@ import { isIslandRoom, type WalletScreen } from "@/data/wallet-screens";
 import { cardDragY } from "@/store/wallet-gesture";
 import { useWalletIslandTitle, useWalletNav, useWalletRoom } from "@/store/wallet-nav";
 import { useLanguageStore } from "@/store/language-store";
-import { useUser } from "@clerk/clerk-expo";
+import { useUser } from "@clerk/expo";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";

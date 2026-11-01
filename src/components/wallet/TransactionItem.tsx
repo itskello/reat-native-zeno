@@ -4,6 +4,9 @@ import { formatAmount } from "@/data/currencies";
 import { getTransactionType } from "@/data/transaction-types";
 import type { CurrencyCode } from "@/types/content";
 import type { Transaction, TransactionStatus } from "@/types/wallet";
+import { useWalletStore } from "@/store/wallet-store";
+import { useLanguageStore } from "@/store/language-store";
+import { concealMoney } from "@/lib/money-visibility";
 import { memo } from "react";
 import { Pressable, View } from "react-native";
 
@@ -30,6 +33,9 @@ export const TransactionItem = memo(function TransactionItem({
   onPress,
 }: TransactionItemProps) {
   const type = getTransactionType(transaction.typeId);
+  const isBalanceHidden = useWalletStore((state) => state.isBalanceHidden);
+  const language = useLanguageStore((state) => state.language);
+  const localized = transaction.localized?.[language];
   const isIncoming = transaction.direction === "in";
   const sign = isIncoming ? "+" : "-";
 
@@ -54,14 +60,14 @@ export const TransactionItem = memo(function TransactionItem({
           numberOfLines={1}
           className="font-semibold text-[16px] text-zeno-text-primary"
         >
-          {transaction.title}
+          {localized?.title ?? transaction.title}
         </Text>
         <Text
           allowFontScaling={false}
           numberOfLines={1}
           className="mt-0.5 font-medium text-[14px] text-zeno-text-secondary"
         >
-          {transaction.description}
+          {localized?.description ?? transaction.description}
         </Text>
       </View>
 
@@ -71,7 +77,7 @@ export const TransactionItem = memo(function TransactionItem({
           className="font-semibold text-[16px] text-zeno-text-primary"
         >
           {sign}
-          {formatAmount(transaction.amount, currency)}
+          {concealMoney(formatAmount(transaction.amount, currency), isBalanceHidden)}
         </Text>
         <Text
           allowFontScaling={false}

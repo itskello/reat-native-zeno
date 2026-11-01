@@ -1,5 +1,5 @@
 import { registerCurrentDevice } from "@/features/security/session-service";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import * as Device from "expo-device";
 import * as SecureStore from "expo-secure-store";
 import { useEffect, useRef } from "react";

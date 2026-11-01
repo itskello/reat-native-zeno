@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     return json({ error: "L’assistant est temporairement indisponible." }, 503);
   }
 
-  let body: { channelId?: unknown; messageId?: unknown };
+  let body: { channelId?: unknown; messageId?: unknown; language?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -44,6 +44,10 @@ export async function POST(request: Request) {
   if (typeof body.channelId !== "string" || body.channelId.length > 128 || typeof body.messageId !== "string" || body.messageId.length > 128) {
     return json({ error: "Message invalide." }, 400);
   }
+  if (body.language !== undefined && body.language !== "en" && body.language !== "fr") {
+    return json({ error: "Langue invalide." }, 400);
+  }
+  const appLanguage = body.language === "en" || body.language === "fr" ? body.language : undefined;
 
   const stream = getSupportStream();
   if (!stream) return json({ error: "Le chat d’assistance n’est pas encore configuré sur le serveur." }, 503);
@@ -82,7 +86,13 @@ export async function POST(request: Request) {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: ZENO_ASSISTANT_SYSTEM_PROMPT }] },
+        systemInstruction: {
+          parts: [{
+            text: `${ZENO_ASSISTANT_SYSTEM_PROMPT}${appLanguage
+              ? `\n\n# Selected app language\nThe customer selected ${appLanguage === "fr" ? "French" : "English"} in ZENO. Always reply in that language, even if their latest message is written in another language.`
+              : ""}`,
+          }],
+        },
         contents: context,
         generationConfig: { temperature: 0.2, maxOutputTokens: 350 },
       }),
@@ -97,7 +107,9 @@ export async function POST(request: Request) {
     if (!reply) return json({ error: "L’assistant n’a pas pu préparer de réponse. Tu peux demander à parler à un agent." }, 502);
 
     if (reply === "[HANDOFF]") {
-      const looksEnglish = /\b(i|the|my|please|how|what|when|help|cannot|can't|money|account|payment|card)\b/i.test(trigger.text);
+      const looksEnglish = appLanguage
+        ? appLanguage === "en"
+        : /\b(i|the|my|please|how|what|when|help|cannot|can't|money|account|payment|card)\b/i.test(trigger.text);
       await channel.updatePartial({ set: { support_status: "waiting", assigned_agent_id: "" } });
       await channel.sendMessage({
         text: looksEnglish ? "I’m passing this to the ZENO team. An agent will reply in this conversation." : "Je transmets ta demande à l’équipe ZENO. Un agent te répondra dans cette conversation.",

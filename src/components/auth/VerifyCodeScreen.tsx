@@ -1,10 +1,11 @@
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { OtpInput } from "@/components/ui/OtpInput";
 import { images } from "@/constants/images";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Modal, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const OTP_LENGTH = 6;
@@ -16,7 +17,7 @@ type VerifyCodeScreenProps = {
   sentTo: string;
   onVerify: (code: string) => Promise<boolean>;
   onResend: () => Promise<boolean>;
-  onVerified: () => void;
+  onVerified: () => void | Promise<void>;
   isVerifying: boolean;
   error: string | null;
   onCodeChange?: () => void;
@@ -48,6 +49,8 @@ export function VerifyCodeScreen({
   const insets = useSafeAreaInsets();
   const [code, setCode] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(RESEND_DELAY_SECONDS);
+  const [isProcessingCode, setIsProcessingCode] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   // Keep the latest callbacks in refs so the auto-submit effect can stay
   // dependent on `code` alone. Depending on the callbacks directly would let a
@@ -88,17 +91,24 @@ export function VerifyCodeScreen({
 
     let isActive = true;
 
-    onVerifyRef.current(code).then((succeeded) => {
+    setIsProcessingCode(true);
+    onVerifyRef.current(code).then(async (succeeded) => {
       if (!isActive) {
         return;
       }
 
       if (succeeded) {
-        onVerifiedRef.current();
+        await onVerifiedRef.current();
       } else {
+        setIsProcessingCode(false);
         setCode("");
         submittedCodeRef.current = null;
       }
+    }).catch(() => {
+      if (!isActive) return;
+      setIsProcessingCode(false);
+      setCode("");
+      submittedCodeRef.current = null;
     });
 
     return () => {
@@ -112,11 +122,16 @@ export function VerifyCodeScreen({
   };
 
   const handleResend = async () => {
-    const sent = await onResend();
+    setIsResending(true);
+    try {
+      const sent = await onResend();
 
-    if (sent) {
-      setCode("");
-      setSecondsLeft(RESEND_DELAY_SECONDS);
+      if (sent) {
+        setCode("");
+        setSecondsLeft(RESEND_DELAY_SECONDS);
+      }
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -202,6 +217,17 @@ export function VerifyCodeScreen({
           )}
         </View>
       </ScrollView>
+      <Modal
+        visible={isProcessingCode || isResending}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => undefined}
+      >
+        <View className="flex-1 items-center justify-center bg-black/50">
+          <ZenoLoading variant="blue" />
+        </View>
+      </Modal>
     </View>
   );
 }

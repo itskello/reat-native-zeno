@@ -1,5 +1,5 @@
 import { getClerkErrorMessage } from "@/lib/clerk-error";
-import { useSignIn } from "@clerk/clerk-expo";
+import { useSignIn } from "@clerk/expo/legacy";
 import { useCallback, useState } from "react";
 
 /**

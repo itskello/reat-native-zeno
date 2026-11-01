@@ -1,5 +1,4 @@
-import { images } from "@/constants/images";
-import { Image } from "expo-image";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
@@ -102,11 +101,7 @@ export default function ConnectionSuccessScreen() {
       className="flex-1 items-center justify-center bg-zeno-dark"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
-      <Image
-        source={images.logoGreenLight}
-        style={{ width: 200, height: 200 }}
-        contentFit="contain"
-      />
+      <ZenoLoading variant="green" />
     </View>
   );
 }

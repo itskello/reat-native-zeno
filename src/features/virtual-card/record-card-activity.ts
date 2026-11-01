@@ -4,6 +4,8 @@ import { useLanguageStore } from "@/store/language-store";
 
 type CardMovement = {
   amount: string;
+  walletBalance: number;
+  cardBalance: number;
   direction: "topup" | "withdraw";
   transactionId: string;
   isSandbox: boolean;
@@ -12,6 +14,8 @@ type CardMovement = {
 /** Add a confirmed card movement to the in-app activity and notification feeds. */
 export function recordCardMovement({
   amount,
+  walletBalance,
+  cardBalance,
   direction,
   transactionId,
   isSandbox,
@@ -29,17 +33,37 @@ export function recordCardMovement({
     dateStyle: "medium",
     timeStyle: "short",
   }).format(now);
-  const formattedAmount = value.toFixed(2);
+  const formatUsdIn = (amount: number, locale: string) =>
+    new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
   const isTopUp = direction === "topup";
+  const notificationMessage = (locale: "fr-FR" | "en-US") => {
+    const amountLabel = formatUsdIn(value, locale);
+    const walletLabel = formatUsdIn(walletBalance, locale);
+    const cardLabel = formatUsdIn(cardBalance, locale);
+    if (locale === "fr-FR") {
+      return isSandbox
+        ? isTopUp
+          ? `Recharge démo de ${amountLabel} USD effectuée. Wallet : ${walletLabel} USD · carte : ${cardLabel} USD. Aucun argent réel n’a été déplacé.`
+          : `Transfert démo de ${amountLabel} USD de la carte vers le Wallet. Wallet : ${walletLabel} USD · carte : ${cardLabel} USD. Aucun argent réel n’a été déplacé.`
+        : `${isTopUp ? "Carte ZENO rechargée" : "Transfert vers le Wallet"} : ${amountLabel} USD.`;
+    }
+    return isSandbox
+      ? isTopUp
+        ? `Demo top up of ${amountLabel} USD completed. Wallet: ${walletLabel} USD · card: ${cardLabel} USD. No real money was moved.`
+        : `Demo transfer of ${amountLabel} USD from card to Wallet completed. Wallet: ${walletLabel} USD · card: ${cardLabel} USD. No real money was moved.`
+      : `${isTopUp ? "ZENO Card topped up" : "Transfer to Wallet"}: ${amountLabel} USD.`;
+  };
 
   useTransactionStore.getState().addTransaction({
     id: transactionId,
     typeId: "card_payment",
     category: "card",
-    title: isTopUp ? "Recharge de la carte ZENO" : "Transfert depuis la carte ZENO",
-    description: isTopUp
-      ? "Depuis le portefeuille ZENO"
-      : "Vers le portefeuille ZENO",
+    title: language === "fr"
+      ? isTopUp ? "Recharge de la carte ZENO" : "Transfert de la carte ZENO"
+      : isTopUp ? "ZENO Card top up" : "Transfer from ZENO Card",
+    description: language === "fr"
+      ? isTopUp ? "Depuis le Wallet principal" : "Vers le Wallet principal"
+      : isTopUp ? "From the main Wallet" : "To the main Wallet",
     amount: value,
     totalAmount: value,
     fee: 0,
@@ -52,7 +76,9 @@ export function recordCardMovement({
     createdAt: now.toISOString(),
     recipientOrSender: isTopUp ? "ZENO Card" : "ZENO Wallet",
     reference: transactionId,
-    paymentMethod: isSandbox ? "Wallet de démo" : "ZENO Wallet",
+    paymentMethod: isSandbox
+      ? language === "fr" ? "Wallet de démonstration" : "Demo Wallet"
+      : "ZENO Wallet",
     note: isSandbox
       ? "Opération de démonstration, sans argent réel."
       : "Mouvement confirmé par le service carte.",
@@ -61,13 +87,11 @@ export function recordCardMovement({
   useNotificationStore.getState().addNotification({
     id: `card-${transactionId}`,
     type: "transaction",
-    message: language === "fr"
-      ? isSandbox
-        ? `${isTopUp ? "Recharge démo" : "Transfert démo"} de ${formattedAmount} USD effectué. Aucun argent réel n'a été déplacé.`
-        : `${isTopUp ? "Carte ZENO rechargée" : "Transfert vers le wallet"} : ${formattedAmount} USD.`
-      : isSandbox
-        ? `${isTopUp ? "Demo top up" : "Demo transfer"} of ${formattedAmount} USD completed. No real money was moved.`
-        : `${isTopUp ? "ZENO Card topped up" : "Transfer to wallet"}: ${formattedAmount} USD.`,
+    message: language === "fr" ? notificationMessage("fr-FR") : notificationMessage("en-US"),
+    messageByLanguage: {
+      en: notificationMessage("en-US"),
+      fr: notificationMessage("fr-FR"),
+    },
     timeLabel,
     createdAt: now.toISOString(),
     read: false,

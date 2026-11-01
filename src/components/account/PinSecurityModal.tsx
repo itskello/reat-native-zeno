@@ -2,8 +2,10 @@ import { showLocalizedAlert } from "@/components/ui/LocalizedText";
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { CloseIcon } from "@/components/ui/CloseIcon";
 import { PIN_LENGTH, PinPad } from "@/components/auth/PinPad";
+import { waitForPinLoading } from "@/components/auth/PinProcessingOverlay";
+import { registerTransactionPin } from "@/features/security/pin-service";
 import { useSecurityStore } from "@/store/security-store";
-import { useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
 
@@ -14,6 +16,7 @@ type PinSecurityModalProps = {
 
 export function PinSecurityModal({ visible, onClose }: PinSecurityModalProps) {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const userId = user?.id ?? "demo_user";
 
   const verifyPin = useSecurityStore((s) => s.verifyPin);
@@ -27,6 +30,8 @@ export function PinSecurityModal({ visible, onClose }: PinSecurityModalProps) {
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isVerifyingCurrentPin, setIsVerifyingCurrentPin] = useState(false);
+  const [isSavingPin, setIsSavingPin] = useState(false);
 
   const handleResetState = () => {
     setStep("verify_current");
@@ -34,6 +39,8 @@ export function PinSecurityModal({ visible, onClose }: PinSecurityModalProps) {
     setNewPin("");
     setConfirmPin("");
     setErrorMsg(null);
+    setIsVerifyingCurrentPin(false);
+    setIsSavingPin(false);
   };
 
   const handleVerifyCurrentPin = async (enteredPin: string) => {
@@ -44,21 +51,27 @@ export function PinSecurityModal({ visible, onClose }: PinSecurityModalProps) {
     // has been entered; otherwise the flow can advance while the user types.
     if (enteredPin.length !== PIN_LENGTH) return;
 
-    const hasStoredPin = await useSecurityStore.getState().hasPin(userId);
-    if (!hasStoredPin) {
-      // If no PIN stored yet, move to creating new PIN
-      setCurrentPin("");
-      setStep("new_pin");
-      return;
-    }
+    const loadingStartedAt = Date.now();
+    setIsVerifyingCurrentPin(true);
+    try {
+      const hasStoredPin = await useSecurityStore.getState().hasPin(userId);
+      if (!hasStoredPin) {
+        setCurrentPin("");
+        setStep("new_pin");
+        return;
+      }
 
-    const isValid = await verifyPin(userId, enteredPin);
-    if (isValid) {
-      setCurrentPin("");
-      setStep("new_pin");
-    } else {
-      setErrorMsg("PIN incorrect. Veuillez réessayez.");
-      setCurrentPin("");
+      const isValid = await verifyPin(userId, enteredPin);
+      if (isValid) {
+        setCurrentPin("");
+        setStep("new_pin");
+      } else {
+        setErrorMsg("PIN incorrect. Veuillez réessayez.");
+        setCurrentPin("");
+      }
+    } finally {
+      await waitForPinLoading(loadingStartedAt);
+      setIsVerifyingCurrentPin(false);
     }
   };
 
@@ -78,7 +91,19 @@ export function PinSecurityModal({ visible, onClose }: PinSecurityModalProps) {
       return;
     }
 
-    const success = await setPin(userId, enteredPin);
+    const loadingStartedAt = Date.now();
+    setIsSavingPin(true);
+    let success = false;
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("No active session");
+      const registered = await registerTransactionPin(token, enteredPin, currentPin || undefined);
+      if (!registered.ok) throw new Error(registered.error);
+      success = await setPin(userId, enteredPin);
+    } finally {
+      await waitForPinLoading(loadingStartedAt);
+      setIsSavingPin(false);
+    }
     if (success) {
       showLocalizedAlert(
         "PIN mis à jour",
@@ -142,6 +167,7 @@ export function PinSecurityModal({ visible, onClose }: PinSecurityModalProps) {
                     <PinPad
                       value={currentPin}
                       onChange={handleVerifyCurrentPin}
+                      busy={isVerifyingCurrentPin}
                     />
                     <Pressable
                       onPress={() => {
@@ -164,6 +190,7 @@ export function PinSecurityModal({ visible, onClose }: PinSecurityModalProps) {
                   <PinPad
                     value={confirmPin}
                     onChange={handleConfirmPinEntered}
+                    busy={isSavingPin}
                   />
                 )}
               </View>

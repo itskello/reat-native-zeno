@@ -1,17 +1,18 @@
 import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { PIN_LENGTH, PinPad } from "@/components/auth/PinPad";
+import { waitForPinLoading } from "@/components/auth/PinProcessingOverlay";
 import { CloseIcon } from "@/components/ui/CloseIcon";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { EyeIcon } from "@/components/ui/EyeIcon";
 import { images } from "@/constants/images";
 import { useSecurityStore } from "@/store/security-store";
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { Image } from "expo-image";
 import * as LocalAuthentication from "expo-local-authentication";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Modal,
   Pressable,
 
@@ -133,8 +134,10 @@ export default function VerifyPinScreen() {
     const check = async () => {
       if (!user?.id) return;
 
+      const loadingStartedAt = Date.now();
       setIsChecking(true);
       const ok = await verifyPin(user.id, pin);
+      await waitForPinLoading(loadingStartedAt);
       if (cancelled) return;
       setIsChecking(false);
 
@@ -212,6 +215,7 @@ export default function VerifyPinScreen() {
           <PinPad
             value={pin}
             onChange={handleChange}
+            busy={isChecking}
             onBiometric={
               biometricEnabled === true
                 ? () => {
@@ -298,7 +302,7 @@ export default function VerifyPinScreen() {
               className="h-14 items-center justify-center rounded-2xl bg-zeno-blue shadow-md"
             >
               {isVerifyingReset ? (
-                <ActivityIndicator color="#ffffff" />
+                <ZenoLoading variant="blue" size={24} color="#FFFFFF" />
               ) : (
                 <Text className="font-bold text-[18px] text-white">
                   Définir un nouveau PIN ({PIN_LENGTH} chiffres)

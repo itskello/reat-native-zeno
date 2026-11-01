@@ -12,7 +12,7 @@ import {
 } from "@/data/countries";
 import { toE164 } from "@/lib/phone";
 import { useOnboardingStore } from "@/store/onboarding-store";
-import { useUser } from "@clerk/clerk-expo";
+import { useUser } from "@clerk/expo";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";

@@ -1,4 +1,5 @@
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
+import { PinProcessingOverlay } from "@/components/auth/PinProcessingOverlay";
 import { images } from "@/constants/images";
 import { Image } from "expo-image";
 import { useEffect, useMemo, useRef } from "react";
@@ -34,6 +35,8 @@ type PinPadProps = {
    * Tapping it triggers the biometric prompt.
    */
   onBiometric?: () => void;
+  /** Show the ZENO loading overlay while the entered PIN is processed. */
+  busy?: boolean;
 };
 
 /**
@@ -43,8 +46,9 @@ type PinPadProps = {
  * Sized responsively so all digits fit with clean gutters/spacing without
  * overflowing the screen width on any device size.
  */
-export function PinPad({ value, onChange, length = PIN_LENGTH, onBiometric }: PinPadProps) {
+export function PinPad({ value, onChange, length = PIN_LENGTH, onBiometric, busy = false }: PinPadProps) {
   const handleKeyPress = (key: (typeof KEYPAD_KEYS)[number]) => {
+    if (busy) return;
     if (key === "") {
       return;
     }
@@ -72,10 +76,8 @@ export function PinPad({ value, onChange, length = PIN_LENGTH, onBiometric }: Pi
         ))}
       </View>
 
-      {/* Keypad */}
       <View className="mt-auto flex-row flex-wrap pb-2">
         {KEYPAD_KEYS.map((key, index) => {
-          // Bottom-left empty slot: show fingerprint icon if biometrics available
           const isBiometricSlot = key === "" && onBiometric != null;
 
           return (
@@ -83,11 +85,8 @@ export function PinPad({ value, onChange, length = PIN_LENGTH, onBiometric }: Pi
               key={index}
               className="h-[68px] w-1/3 items-center justify-center"
               onPress={() => {
-                if (isBiometricSlot) {
-                  onBiometric();
-                } else {
-                  handleKeyPress(key);
-                }
+                if (isBiometricSlot) onBiometric();
+                else handleKeyPress(key);
               }}
               disabled={key === "" && !isBiometricSlot}
               android_ripple={
@@ -117,6 +116,7 @@ export function PinPad({ value, onChange, length = PIN_LENGTH, onBiometric }: Pi
           );
         })}
       </View>
+      <PinProcessingOverlay visible={busy} />
     </View>
   );
 }

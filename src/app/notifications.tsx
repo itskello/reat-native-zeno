@@ -183,7 +183,7 @@ function NotificationRow({
             allowFontScaling={false}
             className="text-[14px] font-medium text-zeno-text-primary leading-[20px] pr-4"
           >
-            {notification.message}
+            {notification.messageByLanguage?.[language] ?? notification.message}
           </Text>
 
           <Text

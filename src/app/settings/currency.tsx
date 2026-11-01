@@ -3,6 +3,7 @@ import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 ﻿import { images } from "@/constants/images";
 import { useAppStore } from "@/store/app-store";
 import { useWalletStore } from "@/store/wallet-store";
+import { useLanguageStore } from "@/store/language-store";
 import type { CurrencyCode } from "@/types/content";
 import { Image } from "expo-image";
 import { router } from "expo-router";
@@ -27,6 +28,7 @@ export default function CurrencyScreen() {
   const selectedCurrency = useAppStore((s) => s.selectedCurrency);
   const setSelectedCurrency = useAppStore((s) => s.setSelectedCurrency);
   const setEmptyWalletCurrency = useWalletStore((s) => s.setEmptyWalletCurrency);
+  const language = useLanguageStore((s) => s.language);
 
   const handleSelect = (item: CurrencyOption) => {
     if (!setEmptyWalletCurrency(item.code)) {
@@ -63,7 +65,7 @@ export default function CurrencyScreen() {
             allowFontScaling={false}
             className="ml-4 font-bold text-[22px] text-zeno-text-primary"
           >
-            Devise / Currency
+            {language === "fr" ? "Devise" : "Currency"}
           </Text>
         </View>
 

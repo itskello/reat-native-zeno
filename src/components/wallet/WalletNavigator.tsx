@@ -22,6 +22,12 @@ import Animated, {
     withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "@clerk/expo";
+import { provisionWalletAccounts } from "@/features/wallet/wallet-read-service";
+import { useAppStore } from "@/store/app-store";
+import { useWalletStore } from "@/store/wallet-store";
+import { useTransactionStore } from "@/store/transaction-store";
+import { isFinancialSandboxEnabled } from "@/features/wallet/financial-mode";
 
 /** Vertical room left for the pill before Wallet Home content starts. */
 const ISLAND_HEIGHT = 54;
@@ -38,11 +44,42 @@ const COLLAPSE_RANGE = 90;
  */
 export function WalletNavigator() {
   const insets = useSafeAreaInsets();
+  const { getToken, userId } = useAuth();
+  const selectedCurrency = useAppStore((state) => state.selectedCurrency);
   const current = useWalletNav((s) => s.current);
   const goHome = useWalletNav((s) => s.goHome);
   const clearClosing = useWalletNav((s) => s.clearClosing);
 
   const room = useWalletRoom();
+
+  // Make sure the signed-in user's currency accounts exist before wallet
+  // balance reads are connected. The endpoint is idempotent and runs server-side.
+  useEffect(() => {
+    if (!userId || isFinancialSandboxEnabled) return;
+    let cancelled = false;
+
+    void (async () => {
+      const token = await getToken();
+      if (!token || cancelled) return;
+
+      const result = await provisionWalletAccounts(token);
+      if (cancelled) return;
+      if (!result.ok && __DEV__) {
+        console.warn("[wallet] Account provisioning is not ready:", result.error);
+        return;
+      }
+      await Promise.all([
+        useWalletStore.getState().loadWallet(selectedCurrency, getToken),
+        useTransactionStore.getState().loadTransactions(getToken),
+      ]);
+    })().catch((cause) => {
+      if (__DEV__) console.warn("[wallet] Account provisioning failed:", cause);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken, selectedCurrency, userId]);
 
   // Wallet rooms live inside one route. Keep Android Back inside that model:
   // close an open room/card first, and never reveal an old login route beneath

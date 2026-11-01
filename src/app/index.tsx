@@ -1,7 +1,7 @@
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, View } from "react-native";
 import { images } from "@/constants/images";

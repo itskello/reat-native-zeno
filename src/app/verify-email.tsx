@@ -1,11 +1,12 @@
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 ﻿import { images } from "@/constants/images";
 import { useEmailVerification } from "@/lib/use-email-verification";
 import { useOnboardingStore } from "@/store/onboarding-store";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Modal, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function VerifyEmailScreen() {
@@ -90,6 +91,17 @@ export default function VerifyEmailScreen() {
           </Text>
         </Pressable>
       </View>
+      <Modal
+        visible={isSending}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => undefined}
+      >
+        <View className="flex-1 items-center justify-center bg-black/50">
+          <ZenoLoading variant="blue" />
+        </View>
+      </Modal>
     </View>
   );
 }

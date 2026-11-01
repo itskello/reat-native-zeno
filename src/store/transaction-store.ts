@@ -1,256 +1,143 @@
+import { useLanguageStore } from "@/store/language-store";
 import type { Transaction } from "@/types/wallet";
 import { create } from "zustand";
+import { getWalletActivity } from "@/features/wallet/wallet-read-service";
+import { isFinancialSandboxEnabled } from "@/features/wallet/financial-mode";
+import type { CurrencyCode, TransactionTypeId } from "@/types/content";
 
-/**
- * Transaction history state.
- *
- * PLACEHOLDER data for now so the Wallet Home list can be built. The backend
- * is the source of truth for real transactions (see AGENTS.md — Financial Data
- * Rules); `loadTransactions` is where the real fetch is wired later. Confirmed
- * actions are prepended immediately so the in-app activity updates at once.
- */
+function makeDemoOpeningTransaction(): Transaction[] {
+  if (!isFinancialSandboxEnabled) return [];
 
-const PLACEHOLDER_TRANSACTIONS: Transaction[] = [
-  {
-    id: "txn_101",
-    typeId: "sent",
-    category: "sent",
-    title: "Zeno",
-    description: "Recouvrement de dettes",
-    amount: 0.03,
-    totalAmount: 0.03,
-    fee: 0.0,
-    currency: "USD",
-    direction: "out",
-    status: "completed",
-    dateLabel: "18 sept. 2026",
-    timeLabel: "18 sept. 2026 à 16:28",
-    shortId: "c4dc...7071",
-    createdAt: "2026-09-18T16:28:00Z",
-    recipientOrSender: "Zeno",
-    reference: "TXN-20260918-003",
-    paymentMethod: "Solde ZENO",
-    note: "Recouvrement: REF// cf705c41-82f9-46f8-8950-f010ec4fbbb4//Card Payment Fee REF: edb76848-35ed-4eb3-b84e-6d438c6ff727",
-  },
-  {
-    id: "txn_102",
+  const now = new Date();
+  const locale = "en-US";
+  const dateLabel = new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(now);
+  const timeLabel = new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(now);
+
+  return [{
+    id: "demo-opening-wallet",
     typeId: "deposit",
     category: "received",
-    title: "MONDAY ISRAEL M...",
-    description: "Dépôt",
-    amount: 27.5,
-    totalAmount: 27.5,
-    fee: 0.0,
+    title: "Demo starting balance",
+    description: "ZENO test credit",
+    amount: 100,
+    totalAmount: 100,
+    fee: 0,
     currency: "USD",
     direction: "in",
     status: "completed",
-    dateLabel: "15 sept. 2026",
-    timeLabel: "15 sept. 2026 à 14:30",
-    shortId: "89a2...1104",
-    createdAt: "2026-09-15T14:30:00Z",
-    recipientOrSender: "MONDAY ISRAEL MICKAEL VIWAKPONOU",
-    reference: "TXN-20260915-275",
-    paymentMethod: "Mobile Money (MTN)",
-  },
-  {
-    id: "txn_103",
-    typeId: "deposit",
-    category: "received",
-    title: "MONDAY ISRAEL M...",
-    description: "Dépôt",
-    amount: 20.62,
-    totalAmount: 20.62,
-    fee: 0.0,
-    currency: "USD",
-    direction: "in",
-    status: "failed",
-    dateLabel: "15 sept. 2026",
-    timeLabel: "15 sept. 2026 à 12:15",
-    shortId: "3e11...9902",
-    createdAt: "2026-09-15T12:15:00Z",
-    recipientOrSender: "MONDAY ISRAEL MICKAEL VIWAKPONOU",
-    reference: "TXN-20260915-206",
-    paymentMethod: "Mobile Money (Moov)",
-  },
-  {
-    id: "txn_104",
-    typeId: "card_payment",
-    category: "card",
-    title: "MONDAY ISRAEL ...",
-    description: "Recharge de la carte",
-    amount: 18.58,
-    totalAmount: 18.77,
-    fee: 0.19,
-    currency: "USD",
-    direction: "out",
-    status: "completed",
-    dateLabel: "15 sept. 2026",
-    timeLabel: "15 sept. 2026 à 18:21",
-    shortId: "2265...b98e",
-    createdAt: "2026-09-15T18:21:00Z",
-    recipientOrSender: "MONDAY ISRAEL MICKAEL VIWAKPONOU",
-    reference: "TXN-20260915-185",
-    paymentMethod: "Carte ZENO **** 4821",
-    note: "Recharge de la carte virtuelle",
-  },
-  {
-    id: "txn_105",
-    typeId: "sent",
-    category: "sent",
-    title: "Zeno",
-    description: "Recouvrement de dettes",
-    amount: 3.0,
-    totalAmount: 3.0,
-    fee: 0.0,
-    currency: "USD",
-    direction: "out",
-    status: "completed",
-    dateLabel: "15 sept. 2026",
-    timeLabel: "15 sept. 2026 à 09:40",
-    shortId: "91bc...4412",
-    createdAt: "2026-09-15T09:40:00Z",
-    recipientOrSender: "Zeno",
-    reference: "TXN-20260915-300",
-    paymentMethod: "Solde ZENO",
-  },
-  {
-    id: "txn_106",
-    typeId: "sent",
-    category: "sent",
-    title: "Zeno",
-    description: "Recouvrement de dettes",
-    amount: 3.0,
-    totalAmount: 3.0,
-    fee: 0.0,
-    currency: "USD",
-    direction: "out",
-    status: "completed",
-    dateLabel: "15 sept. 2026",
-    timeLabel: "15 sept. 2026 à 09:20",
-    shortId: "14aa...0091",
-    createdAt: "2026-09-15T09:20:00Z",
-    recipientOrSender: "Zeno",
-    reference: "TXN-20260915-301",
-    paymentMethod: "Solde ZENO",
-  },
-  {
-    id: "txn_107",
-    typeId: "sent",
-    category: "sent",
-    title: "Zeno",
-    description: "Recouvrement de dettes",
-    amount: 2.4,
-    totalAmount: 2.4,
-    fee: 0.0,
-    currency: "USD",
-    direction: "out",
-    status: "completed",
-    dateLabel: "15 sept. 2026",
-    timeLabel: "15 sept. 2026 à 08:10",
-    shortId: "77cd...8810",
-    createdAt: "2026-09-15T08:10:00Z",
-    recipientOrSender: "Zeno",
-    reference: "TXN-20260915-240",
-    paymentMethod: "Solde ZENO",
-  },
-  {
-    id: "txn_108",
-    typeId: "deposit",
-    category: "received",
-    title: "MONDAY ISRAEL M...",
-    description: "Dépôt",
-    amount: 33.5,
-    totalAmount: 33.5,
-    fee: 0.0,
-    sentAmountXof: 19308,
-    exchangeRate: "1$ = 576.3687",
-    currency: "USD",
-    direction: "in",
-    status: "failed",
-    dateLabel: "25 août 2026",
-    timeLabel: "25 août 2026 à 23:23",
-    shortId: "5ab1...8052",
-    createdAt: "2026-08-25T23:23:00Z",
-    recipientOrSender: "MONDAY ISRAEL MICKAEL VIWAKPONOU",
-    reference: "TXN-20260825-335",
-    paymentMethod: "Mobile Money (Celtiis)",
-  },
-  {
-    id: "txn_109",
-    typeId: "sent",
-    category: "sent",
-    title: "Zeno",
-    description: "Frais mensuels",
-    amount: 0.6,
-    totalAmount: 0.6,
-    fee: 0.0,
-    currency: "USD",
-    direction: "out",
-    status: "pending",
-    dateLabel: "26 juin 2026",
-    timeLabel: "26 juin 2026 à 15:20",
-    shortId: "2091...3381",
-    createdAt: "2026-06-26T15:20:00Z",
-    recipientOrSender: "Zeno Service",
-    reference: "TXN-20260626-060",
-    paymentMethod: "Solde ZENO",
-  },
-  {
-    id: "txn_110",
-    typeId: "card_payment",
-    category: "card",
-    title: "MONDAY ISRAEL M...",
-    description: "Recharge de la carte",
-    amount: 10.0,
-    totalAmount: 10.1,
-    fee: 0.1,
-    currency: "USD",
-    direction: "out",
-    status: "completed",
-    dateLabel: "26 mai 2026",
-    timeLabel: "26 mai 2026 à 14:10",
-    shortId: "1192...4451",
-    createdAt: "2026-05-26T14:10:00Z",
-    recipientOrSender: "Carte Visa Virtuelle ZENO",
-    reference: "TXN-20260526-100",
-    paymentMethod: "Carte ZENO **** 4821",
-  },
-  {
-    id: "txn_111",
-    typeId: "deposit",
-    category: "received",
-    title: "MONDAY ISRAEL M...",
-    description: "Dépôt",
-    amount: 15.0,
-    totalAmount: 15.0,
-    fee: 0.2,
-    currency: "USD",
-    direction: "in",
-    status: "completed",
-    dateLabel: "26 mai 2026",
-    timeLabel: "26 mai 2026 à 10:00",
-    shortId: "9912...0014",
-    createdAt: "2026-05-26T10:00:00Z",
-    recipientOrSender: "MONDAY ISRAEL MICKAEL VIWAKPONOU",
-    reference: "TXN-20260526-150",
-    paymentMethod: "Mobile Money (MTN)",
-  },
-];
+    dateLabel,
+    timeLabel,
+    shortId: "demo-100",
+    createdAt: now.toISOString(),
+    recipientOrSender: "ZENO Demo",
+    reference: "DEMO-OPENING-BALANCE",
+    paymentMethod: "Demo wallet",
+    note: "Development-only demo balance. No real money.",
+    localized: {
+      en: {
+        title: "Demo starting balance",
+        description: "ZENO test credit",
+        paymentMethod: "Demo wallet",
+        note: "Development-only demo balance. No real money.",
+      },
+      fr: {
+        title: "Solde de démonstration",
+        description: "Crédit de test ZENO",
+        paymentMethod: "Wallet de démonstration",
+        note: "Solde fictif de développement. Aucun argent réel.",
+      },
+    },
+  }];
+}
 
 type TransactionState = {
   transactions: Transaction[];
   isLoading: boolean;
-  loadTransactions: () => Promise<void>;
+  loadTransactions: (getToken?: () => Promise<string | null>) => Promise<void>;
   addTransaction: (transaction: Transaction) => void;
 };
 
 export const useTransactionStore = create<TransactionState>((set) => ({
-  transactions: PLACEHOLDER_TRANSACTIONS,
+  transactions: makeDemoOpeningTransaction(),
   isLoading: false,
-  loadTransactions: async () => {
+  loadTransactions: async (getToken) => {
+    if (isFinancialSandboxEnabled) return;
+    if (!getToken) {
+      set({ transactions: [] });
+      return;
+    }
+
     set({ isLoading: true });
-    // TODO: fetch the real transaction history from the backend and set it here.
-    set({ transactions: PLACEHOLDER_TRANSACTIONS, isLoading: false });
+    try {
+      const language = useLanguageStore.getState().language;
+      const locale = language === "fr" ? "fr-FR" : "en-US";
+      const activity = await getWalletActivity(getToken);
+      const transactions: Transaction[] = activity.map((item) => {
+        const incoming = item.direction === "in";
+        const isCard = item.kind.startsWith("card_");
+        const typeId: TransactionTypeId = isCard
+          ? "card_payment"
+          : item.kind === "deposit"
+            ? "deposit"
+            : item.kind === "withdrawal"
+              ? "withdrawal"
+              : item.kind === "payment_request"
+                ? "payment_request"
+                : item.kind === "payment_link"
+                  ? "payment_link"
+                  : incoming ? "received" : "sent";
+        const metadataTitle = item.kind === "p2p_transfer"
+          ? incoming ? item.metadata.senderName : item.metadata.recipientName
+          : item.metadata.counterpartyName ?? item.metadata.merchantName;
+        const title = typeof metadataTitle === "string"
+          ? metadataTitle
+          : transactionTitle(typeId, language);
+        const date = new Date(item.createdAt);
+
+        return {
+          id: item.id,
+          typeId,
+          category: isCard ? "card" : incoming ? "received" : "sent",
+          title,
+          description: transactionTitle(typeId, language),
+          localized: {
+            en: {
+              ...(typeof metadataTitle === "string" ? {} : { title: transactionTitle(typeId, "en") }),
+              description: transactionTitle(typeId, "en"),
+            },
+            fr: {
+              ...(typeof metadataTitle === "string" ? {} : { title: transactionTitle(typeId, "fr") }),
+              description: transactionTitle(typeId, "fr"),
+            },
+          },
+          amount: item.amount,
+          totalAmount: item.amount + item.fee,
+          fee: item.fee,
+          currency: item.currency as CurrencyCode,
+          direction: item.direction,
+          status: "completed",
+          createdAt: item.createdAt,
+          dateLabel: Number.isNaN(date.getTime()) ? undefined : new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(date),
+          timeLabel: Number.isNaN(date.getTime()) ? undefined : new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(date),
+          shortId: item.reference ?? item.id.slice(0, 8),
+          recipientOrSender: title,
+          reference: item.reference ?? undefined,
+        };
+      });
+      set({ transactions });
+    } catch (error) {
+      if (__DEV__) console.warn("[wallet] Could not load wallet activity:", error);
+      set({ transactions: [] });
+    } finally {
+      set({ isLoading: false });
+    }
   },
   addTransaction: (transaction) =>
     set((state) =>
@@ -259,3 +146,16 @@ export const useTransactionStore = create<TransactionState>((set) => ({
         : { transactions: [transaction, ...state.transactions] }
     ),
 }));
+
+function transactionTitle(type: TransactionTypeId, language: "en" | "fr") {
+  const labels: Record<TransactionTypeId, { en: string; fr: string }> = {
+    sent: { en: "Money sent", fr: "Argent envoyé" },
+    received: { en: "Money received", fr: "Argent reçu" },
+    deposit: { en: "Wallet deposit", fr: "Dépôt sur le Wallet" },
+    withdrawal: { en: "Wallet withdrawal", fr: "Retrait du Wallet" },
+    payment_request: { en: "Payment request", fr: "Demande de paiement" },
+    card_payment: { en: "Card activity", fr: "Opération par carte" },
+    payment_link: { en: "Payment link", fr: "Lien de paiement" },
+  };
+  return labels[type][language];
+}

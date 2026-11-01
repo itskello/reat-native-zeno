@@ -1,5 +1,6 @@
 import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { Chevron } from "@/components/ui/Chevron";
 import { CloseIcon } from "@/components/ui/CloseIcon";
 import { images } from "@/constants/images";
@@ -12,15 +13,16 @@ import { cardDragY } from "@/store/wallet-gesture";
 import { useRecipientStore, type Recipient } from "@/store/recipient-store";
 import { useWalletNav } from "@/store/wallet-nav";
 import { useWalletStore } from "@/store/wallet-store";
+import { concealMoney } from "@/lib/money-visibility";
 import { useLanguageStore } from "@/store/language-store";
 import { colors } from "@/theme/colors";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import * as Clipboard from "expo-clipboard";
 import * as Crypto from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Share, Text as NativeText, View } from "react-native";
+import { Pressable, ScrollView, Share, Text as NativeText, View } from "react-native";
 import { withSpring } from "react-native-reanimated";
 
 type GetPaidSurfaceProps = { contentTopGap: number };
@@ -31,6 +33,7 @@ type Currency = "XOF" | "USD" | "EUR";
 export function GetPaidSurface({ contentTopGap }: GetPaidSurfaceProps) {
   const goHome = useWalletNav((state) => state.goHome);
   const wallet = useWalletStore((state) => state.wallet);
+  const isBalanceHidden = useWalletStore((state) => state.isBalanceHidden);
   const language = useLanguageStore((state) => state.language);
   const recipients = useRecipientStore((state) => state.recent);
   const setRecipients = useRecipientStore((state) => state.setRecipients);
@@ -234,7 +237,7 @@ export function GetPaidSurface({ contentTopGap }: GetPaidSurfaceProps) {
                 <Text className="mt-2 text-[14px] text-white/65">{links.length ? `${links.length} payment links` : "Create your first payment link"}</Text>
               </View>
               {error ? <InlineError message={error} /> : null}
-              {busy ? <ActivityIndicator className="mt-4" color={colors.zenoBlue} /> : null}
+              {busy ? <ZenoLoading variant="blue" size={20} className="mt-4" /> : null}
               <View className="mt-auto gap-y-3 pt-10">
                 <PrimaryButton label="Create Link" onPress={() => { setError(null); setLinkTitle(""); setLinkDescription(""); setLinkAmount(""); setLinkImage(null); setPage("link-create"); }} />
                 <SecondaryButton light label="Manage Link" onPress={() => { setPage("link-list"); void loadLinks(); }} />
@@ -246,7 +249,7 @@ export function GetPaidSurface({ contentTopGap }: GetPaidSurfaceProps) {
             <>
               <Text className="text-[23px] font-bold text-zeno-text-primary">Create Link</Text>
               <Field label="Service or product" value={linkTitle} onChangeText={setLinkTitle} placeholder="Ex. Design project" />
-              <Field label="Price" value={linkAmount} onChangeText={(v) => setLinkAmount(v.replace(/[^0-9.,]/g, ""))} placeholder="100,000" keyboardType="decimal-pad" suffix={requestCurrency} />
+              <Field label="Price" value={linkAmount} onChangeText={(v) => setLinkAmount(v.replace(/[^0-9.,]/g, ""))} placeholder="100,000" keyboardType="decimal-pad" suffix={requestCurrency} secureTextEntry={isBalanceHidden} />
               <Text className="mb-2 mt-6 text-[16px] text-zeno-text-primary">Description</Text>
               <TextInput value={linkDescription} onChangeText={setLinkDescription} placeholder="Add details about this payment" placeholderTextColor="#858585" multiline textAlignVertical="top" className="min-h-[130px] rounded-[20px] border border-black/10 bg-[#F7F7F7] px-4 py-4 text-[15px] text-zeno-text-primary" />
               <Text className="mb-2 mt-6 text-[16px] text-zeno-text-primary">Image (optional)</Text>
@@ -272,7 +275,7 @@ export function GetPaidSurface({ contentTopGap }: GetPaidSurfaceProps) {
             <>
               <View className="flex-row items-center justify-between"><Text className="text-[23px] font-bold text-zeno-text-primary">Your Links</Text><Text className="text-[13px] text-zeno-text-secondary">{links.length}</Text></View>
               <View className="mt-6 flex-row border-b border-black/10 pb-3"><Text className="flex-1 text-[13px] font-semibold text-zeno-text-secondary">Service</Text><Text className="w-[78px] text-[13px] font-semibold text-zeno-text-secondary">Price</Text><Text className="w-[65px] text-[13px] font-semibold text-zeno-text-secondary">Link</Text></View>
-              {busy ? <ActivityIndicator className="mt-8" color={colors.zenoBlue} /> : links.length ? links.map((item) => <Pressable key={item.id} onPress={() => { setSelectedLink(item); setPage("link-detail"); }} className="min-h-[64px] flex-row items-center border-b border-black/5"><Text numberOfLines={1} className="flex-1 pr-2 text-[13px] text-zeno-text-primary">{item.title}</Text><Text className="w-[78px] text-[13px] text-zeno-text-secondary">{formatAmount(item.amount, item.currency)}</Text><View className="w-[65px] items-end"><Chevron direction="right" size={11} /></View></Pressable>) : <Text className="py-10 text-center text-[14px] text-zeno-text-secondary">No payment links found.</Text>}
+              {busy ? <ZenoLoading variant="blue" size={20} className="mt-5" /> : links.length ? links.map((item) => <Pressable key={item.id} onPress={() => { setSelectedLink(item); setPage("link-detail"); }} className="min-h-[64px] flex-row items-center border-b border-black/5"><Text numberOfLines={1} className="flex-1 pr-2 text-[13px] text-zeno-text-primary">{item.title}</Text><Text className="w-[78px] text-[13px] text-zeno-text-secondary">{concealMoney(formatAmount(item.amount, item.currency), isBalanceHidden)}</Text><View className="w-[65px] items-end"><Chevron direction="right" size={11} /></View></Pressable>) : <Text className="py-10 text-center text-[14px] text-zeno-text-secondary">No payment links found.</Text>}
               {error ? <InlineError message={error} /> : null}
               <View className="mt-auto pt-8"><PrimaryButton label="Create Link" onPress={() => { setError(null); setPage("link-create"); }} /></View>
             </>
@@ -284,7 +287,7 @@ export function GetPaidSurface({ contentTopGap }: GetPaidSurfaceProps) {
               <View className="mt-6 items-center rounded-[24px] bg-zeno-green/40 px-5 py-7">
                 <View className="h-[54px] w-[54px] items-center justify-center rounded-full bg-white"><Image source={images.linkIcon} style={{ width: 25, height: 25 }} contentFit="contain" /></View>
                 <Text className="mt-4 text-[16px] font-semibold text-zeno-text-primary">Payment link {selectedLink.status}</Text>
-                <Text className="mt-2 text-[32px] font-bold text-zeno-text-primary">{formatAmount(selectedLink.amount, selectedLink.currency)}</Text>
+                <Text className="mt-2 text-[32px] font-bold text-zeno-text-primary">{concealMoney(formatAmount(selectedLink.amount, selectedLink.currency), isBalanceHidden)}</Text>
                 <Text className="mt-2 text-center text-[16px] text-zeno-text-primary">For {selectedLink.title}</Text>
                 <View className="mt-5 w-full rounded-full bg-white/75 px-4 py-3"><Text numberOfLines={1} className="text-center text-[13px] text-zeno-text-primary">{selectedLink.url}</Text></View>
                 <View className="mt-3 w-full"><PrimaryButton label="Copy Link" onPress={() => { void Clipboard.setStringAsync(selectedLink.url); }} tone="blue" /></View>
@@ -300,7 +303,7 @@ export function GetPaidSurface({ contentTopGap }: GetPaidSurfaceProps) {
             <>
               <View className="flex-row items-center rounded-full border border-black/10 bg-[#F7F7F7] px-4"><Text className="mr-2 text-[20px] text-zeno-text-secondary">⌕</Text><TextInput value={query} onChangeText={(v) => { setQuery(v); setError(null); setSearching(v.trim().length > 0); if (!v.trim()) setSearchResults([]); }} placeholder="Name, username, email" placeholderTextColor="#858585" className="h-[54px] flex-1 text-[15px] text-zeno-text-primary" /></View>
               <Text className="mb-3 mt-8 text-[18px] font-semibold text-zeno-text-primary">{query ? "People from ZENO" : "Your Contacts"}</Text>
-              {searching ? <ActivityIndicator className="py-6" color={colors.zenoBlue} /> : null}
+              {searching ? <ZenoLoading variant="blue" size={20} className="py-4" /> : null}
               {(query ? searchResults : recipients).map((item) => <Pressable key={item.id} onPress={() => chooseRecipient(item)} className="min-h-[70px] flex-row items-center border-b border-black/5"><Image source={{ uri: item.avatarUrl }} style={{ width: 48, height: 48, borderRadius: 24 }} contentFit="cover" /><View className="ml-4 flex-1"><Text className="text-[16px] font-medium text-zeno-text-primary">{item.name}</Text><Text className="mt-1 text-[13px] text-zeno-text-secondary">{item.zenoId ?? "ZENO account"}</Text></View><Chevron direction="right" size={12} /></Pressable>)}
               {!searching && (query ? searchResults : recipients).length === 0 ? <Text className="py-8 text-center text-[14px] text-zeno-text-secondary">{error ?? (query ? "No ZENO users found." : "No saved contacts yet.")}</Text> : null}
               {error && (query ? searchResults : recipients).length ? <InlineError message={error} /> : null}
@@ -310,7 +313,7 @@ export function GetPaidSurface({ contentTopGap }: GetPaidSurfaceProps) {
           {page === "request-amount" ? (
             <>
               {selectedRecipient ? <View className="flex-row items-center"><Image source={{ uri: selectedRecipient.avatarUrl }} style={{ width: 54, height: 54, borderRadius: 27 }} contentFit="cover" /><Text className="ml-4 text-[22px] font-semibold text-zeno-text-primary">{selectedRecipient.name}</Text></View> : null}
-              <View className="mt-10 flex-row items-center border-b border-black/10 pb-3"><TextInput value={requestAmount} onChangeText={(v) => setRequestAmount(v.replace(/[^0-9.,]/g, ""))} placeholder="0" placeholderTextColor="#9B9B9B" keyboardType="decimal-pad" className="min-w-0 flex-1 text-[48px] text-zeno-text-primary" /><Pressable onPress={() => setCurrencyMenuOpen((open) => !open)} className="flex-row items-center rounded-full border border-black/20 px-4 py-2"><Text className="text-[17px] text-zeno-text-primary">{requestCurrency}</Text><View className="ml-2"><Chevron direction="down" size={10} /></View></Pressable></View>
+              <View className="mt-10 flex-row items-center border-b border-black/10 pb-3"><TextInput value={requestAmount} onChangeText={(v) => setRequestAmount(v.replace(/[^0-9.,]/g, ""))} placeholder="0" placeholderTextColor="#9B9B9B" keyboardType="decimal-pad" secureTextEntry={isBalanceHidden} className="min-w-0 flex-1 text-[48px] text-zeno-text-primary" /><Pressable onPress={() => setCurrencyMenuOpen((open) => !open)} className="flex-row items-center rounded-full border border-black/20 px-4 py-2"><Text className="text-[17px] text-zeno-text-primary">{requestCurrency}</Text><View className="ml-2"><Chevron direction="down" size={10} /></View></Pressable></View>
               {currencyMenuOpen ? <View className="mt-2 self-end rounded-[16px] border border-black/10 bg-white p-1">{(["XOF", "USD", "EUR"] as Currency[]).map((currency) => <Pressable key={currency} onPress={() => { setRequestCurrency(currency); setCurrencyMenuOpen(false); }} className="h-[42px] justify-center px-5"><Text className="text-[15px] text-zeno-text-primary">{currency}</Text></Pressable>)}</View> : null}
               <View className="mt-auto flex-row gap-x-3 pt-8"><SecondaryButton label="Add Note" onPress={() => setPage("request-note")} /><PrimaryButton label="Next" onPress={() => setPage("request-review")} disabled={!amountValid} /></View>
             </>
@@ -327,7 +330,7 @@ export function GetPaidSurface({ contentTopGap }: GetPaidSurfaceProps) {
           {page === "request-review" ? (
             <>
               <Text className="text-[24px] font-bold text-zeno-text-primary">Review</Text>
-              <View className="mt-7 flex-row justify-between border-b border-black/10 pb-5"><Text className="text-[17px] text-zeno-text-primary">Your Request</Text><Text className="text-[17px] font-semibold text-zeno-text-primary">{formatAmount(amountValue, requestCurrency)}</Text></View>
+              <View className="mt-7 flex-row justify-between border-b border-black/10 pb-5"><Text className="text-[17px] text-zeno-text-primary">Your Request</Text><Text className="text-[17px] font-semibold text-zeno-text-primary">{concealMoney(formatAmount(amountValue, requestCurrency), isBalanceHidden)}</Text></View>
               <View className="mt-5 flex-row items-center"><Image source={{ uri: selectedRecipient?.avatarUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} contentFit="cover" /><Text className="ml-3 text-[15px] text-zeno-text-primary">To {selectedRecipient?.name}</Text></View>
               {note.trim() ? <Text className="mt-5 rounded-[16px] bg-[#F5F5F5] px-4 py-3 text-[14px] text-zeno-text-secondary">{note}</Text> : null}
               <Text className="mt-6 text-[14px] leading-5 text-zeno-text-secondary">A request will be sent to this ZENO user. They must accept and pay it before money is transferred.</Text>
@@ -340,7 +343,7 @@ export function GetPaidSurface({ contentTopGap }: GetPaidSurfaceProps) {
             <View className="flex-1 items-center justify-center">
               <View className="h-[88px] w-[88px] items-center justify-center rounded-full bg-zeno-green"><Text className="text-[45px] font-bold text-zeno-dark">✓</Text></View>
               <Text className="mt-6 text-[25px] font-bold text-zeno-text-primary">Request sent</Text>
-              {requestReceipt ? <Text className="mt-3 text-center text-[15px] text-zeno-text-secondary">{formatAmount(requestReceipt.amount, requestReceipt.currency)} requested from {requestReceipt.recipientName}</Text> : null}
+              {requestReceipt ? <Text className="mt-3 text-center text-[15px] text-zeno-text-secondary">{concealMoney(formatAmount(requestReceipt.amount, requestReceipt.currency), isBalanceHidden)} requested from {requestReceipt.recipientName}</Text> : null}
               <View className="mt-auto w-full"><PrimaryButton label="Done" onPress={() => setPage("menu")} /></View>
             </View>
           ) : null}
@@ -349,7 +352,7 @@ export function GetPaidSurface({ contentTopGap }: GetPaidSurfaceProps) {
             <>
               <View className="flex-1 items-center justify-center">
                 <Text className="text-[18px] font-semibold text-zeno-text-primary">Your ZENO QR Code</Text>
-                {busy ? <ActivityIndicator className="mt-8" color={colors.zenoBlue} /> : qrPayload ? (
+                {busy ? <ZenoLoading variant="blue" size={20} className="mt-6" /> : qrPayload ? (
                   <>
                     {/* The QR image comes from the authenticated server payload. */}
                     <View className="mt-6 items-center rounded-[20px] border border-black/10 bg-white px-5 py-5">
@@ -373,12 +376,12 @@ function GetPaidOption({ title, onPress, isLast = false, children }: { title: st
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={title} className={`mb-7 flex-row items-center ${isLast ? "mb-0" : ""}`}><View className="h-[58px] w-[58px] items-center justify-center rounded-full border border-black/20 bg-zeno-green">{children}</View><Text allowFontScaling={false} className="ml-5 flex-1 text-[21px] font-semibold text-white">{title}</Text><Chevron direction="right" size={13} color="#FFFFFF" /></Pressable>;
 }
 
-function Field({ label, value, onChangeText, placeholder, keyboardType = "default", suffix }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string; keyboardType?: "default" | "decimal-pad"; suffix?: string }) {
-  return <><Text className="mb-2 mt-6 text-[16px] text-zeno-text-primary">{label}</Text><View className="h-[58px] flex-row items-center rounded-full bg-[#F4F4F4] px-5"><TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor="#858585" keyboardType={keyboardType} className="h-full flex-1 text-[16px] text-zeno-text-primary" />{suffix ? <Text className="text-[15px] font-semibold text-zeno-text-secondary">{suffix}</Text> : null}</View></>;
+function Field({ label, value, onChangeText, placeholder, keyboardType = "default", suffix, secureTextEntry = false }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string; keyboardType?: "default" | "decimal-pad"; suffix?: string; secureTextEntry?: boolean }) {
+  return <><Text className="mb-2 mt-6 text-[16px] text-zeno-text-primary">{label}</Text><View className="h-[58px] flex-row items-center rounded-full bg-[#F4F4F4] px-5"><TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor="#858585" keyboardType={keyboardType} secureTextEntry={secureTextEntry} className="h-full flex-1 text-[16px] text-zeno-text-primary" />{suffix ? <Text className="text-[15px] font-semibold text-zeno-text-secondary">{suffix}</Text> : null}</View></>;
 }
 
 function PrimaryButton({ label, onPress, disabled = false, busy = false, tone = "lime" }: { label: string; onPress: () => void; disabled?: boolean; busy?: boolean; tone?: "lime" | "blue" }) {
-  return <Pressable onPress={onPress} disabled={disabled || busy} accessibilityRole="button" accessibilityState={{ disabled: disabled || busy }} className={`h-[58px] flex-1 items-center justify-center rounded-full ${tone === "lime" ? "bg-zeno-green" : "bg-zeno-sky"}`} style={{ opacity: disabled || busy ? 0.55 : 1 }}>{busy ? <ActivityIndicator color={colors.zenoDark} /> : <Text className="text-[18px] font-semibold text-zeno-dark">{label}</Text>}</Pressable>;
+  return <Pressable onPress={onPress} disabled={disabled || busy} accessibilityRole="button" accessibilityState={{ disabled: disabled || busy }} className={`h-[58px] flex-1 items-center justify-center rounded-full ${tone === "lime" ? "bg-zeno-green" : "bg-zeno-sky"}`} style={{ opacity: disabled || busy ? 0.55 : 1 }}>{busy ? <ZenoLoading variant="blue" size={24} /> : <Text className="text-[18px] font-semibold text-zeno-dark">{label}</Text>}</Pressable>;
 }
 
 function SecondaryButton({ label, onPress, light = false }: { label: string; onPress: () => void; light?: boolean }) {

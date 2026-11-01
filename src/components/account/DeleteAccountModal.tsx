@@ -1,12 +1,13 @@
 import { showLocalizedAlert } from "@/components/ui/LocalizedText";
 import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 ﻿import { CloseIcon } from "@/components/ui/CloseIcon";
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-    ActivityIndicator, Modal, Pressable, ScrollView, View } from "react-native";
+    Modal, Pressable, ScrollView, View } from "react-native";
 
 type DeleteAccountModalProps = {
   visible: boolean;
@@ -108,7 +109,7 @@ export function DeleteAccountModal({
               }`}
             >
               {isDeleting ? (
-                <ActivityIndicator color="#ffffff" />
+                <ZenoLoading variant="blue" size={24} color="#FFFFFF" />
               ) : (
                 <Text className="font-bold text-[18px] text-white">
                   Confirmer la suppression définitive

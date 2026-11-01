@@ -1,5 +1,6 @@
 import { showLocalizedAlert } from "@/components/ui/LocalizedText";
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
 import {
   CardIcon,
@@ -16,6 +17,8 @@ import { formatAmount } from "@/data/currencies";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useWalletNav } from "@/store/wallet-nav";
 import { useLanguageStore } from "@/store/language-store";
+import { useWalletStore } from "@/store/wallet-store";
+import { concealMoney } from "@/lib/money-visibility";
 import { colors } from "@/theme/colors";
 import { router } from "expo-router";
 import type { Transaction } from "@/types/wallet";
@@ -276,6 +279,9 @@ const TransactionRowItem = memo(function TransactionRowItem({
   const isCard =
     transaction.category === "card" || transaction.typeId === "card_payment";
   const currency = transaction.currency || "USD";
+  const isBalanceHidden = useWalletStore((state) => state.isBalanceHidden);
+  const language = useLanguageStore((state) => state.language);
+  const localized = transaction.localized?.[language];
 
   const iconBg = isCard
     ? "bg-zeno-sky"
@@ -316,14 +322,14 @@ const TransactionRowItem = memo(function TransactionRowItem({
           numberOfLines={1}
           className="text-[15px] font-bold text-zeno-text-primary"
         >
-          {transaction.title}
+          {localized?.title ?? transaction.title}
         </Text>
         <Text
           allowFontScaling={false}
           numberOfLines={1}
           className="mt-0.5 text-[13px] font-medium text-zeno-text-secondary"
         >
-          {transaction.description}
+          {localized?.description ?? transaction.description}
         </Text>
       </View>
 
@@ -335,7 +341,7 @@ const TransactionRowItem = memo(function TransactionRowItem({
             isIncoming ? "text-[#22C55E]" : "text-zeno-text-primary"
           }`}
         >
-          {formatAmount(transaction.amount, currency)}
+          {concealMoney(formatAmount(transaction.amount, currency), isBalanceHidden)}
         </Text>
         {transaction.status === "failed" && (
           <Text
@@ -369,8 +375,10 @@ function TransactionDetailModal({
 }) {
   const insets = useSafeAreaInsets();
   const language = useLanguageStore((state) => state.language);
+  const isBalanceHidden = useWalletStore((state) => state.isBalanceHidden);
   const isIncoming = transaction.direction === "in";
   const currency = transaction.currency || "USD";
+  const localized = transaction.localized?.[language];
 
   const shortId = transaction.shortId || `${transaction.id.slice(0, 4)}...${transaction.id.slice(-4)}`;
   const timeLabel = formatTransactionDate(transaction.createdAt, language, true);
@@ -404,7 +412,10 @@ function TransactionDetailModal({
     // Build a pre-filled message with all the transaction context
     const txId = transaction.reference || transaction.id;
     const txDate = timeLabel;
-    const txAmount = `${transaction.amount} ${transaction.currency || "USD"}`;
+    const txAmount = concealMoney(
+      formatAmount(transaction.amount, transaction.currency || "USD"),
+      isBalanceHidden
+    );
     const txBeneficiary = transaction.recipientOrSender || transaction.title;
 
     const prefilledMessage =
@@ -515,7 +526,7 @@ function TransactionDetailModal({
               allowFontScaling={false}
               className="mt-4 text-[38px] font-bold text-zeno-text-primary tracking-tight"
             >
-              {transaction.amount} $
+              {concealMoney(formatAmount(transaction.amount, currency), isBalanceHidden)}
             </Text>
           </View>
 
@@ -629,7 +640,7 @@ function TransactionDetailModal({
                     allowFontScaling={false}
                     className="text-[15px] font-bold text-zeno-text-primary"
                   >
-                    {transaction.sentAmountXof} XOF
+                    {concealMoney(formatAmount(transaction.sentAmountXof, "XOF"), isBalanceHidden)}
                   </Text>
                 </View>
 
@@ -661,7 +672,7 @@ function TransactionDetailModal({
                     allowFontScaling={false}
                     className="text-[15px] font-bold text-zeno-text-primary"
                   >
-                    {transaction.amount} USD
+                    {concealMoney(formatAmount(transaction.amount, "USD"), isBalanceHidden)}
                   </Text>
                 </View>
               </>
@@ -682,7 +693,7 @@ function TransactionDetailModal({
                 allowFontScaling={false}
                 className="text-[15px] font-bold text-zeno-text-primary"
               >
-                {formatAmount(feeAmount, currency)}
+                {concealMoney(formatAmount(feeAmount, currency), isBalanceHidden)}
               </Text>
             </View>
 
@@ -698,13 +709,13 @@ function TransactionDetailModal({
                 allowFontScaling={false}
                 className="text-[15px] font-bold text-zeno-text-primary"
               >
-                {formatAmount(totalAmount, currency)}
+                {concealMoney(formatAmount(totalAmount, currency), isBalanceHidden)}
               </Text>
             </View>
           </View>
 
           {/* Card 2: Note Container (If note or reference details present) */}
-          {transaction.note && (
+          {(localized?.note ?? transaction.note) && (
             <View className="rounded-[24px] bg-white p-5 shadow-low border border-gray-100/60 mb-4">
               <Text
                 allowFontScaling={false}
@@ -716,7 +727,7 @@ function TransactionDetailModal({
                 allowFontScaling={false}
                 className="text-[15px] font-bold text-zeno-text-primary leading-6"
               >
-                {transaction.note}
+                {localized?.note ?? transaction.note}
               </Text>
             </View>
           )}
@@ -730,7 +741,7 @@ function TransactionDetailModal({
           >
             <View className="h-10 w-10 items-center justify-center rounded-full bg-gray-100">
               {isLoadingStatement ? (
-                <ActivityIndicator size="small" color="#071706" />
+                <ZenoLoading variant="blue" size={24} />
               ) : (
                 <DownloadIcon size={20} color="#071706" />
               )}

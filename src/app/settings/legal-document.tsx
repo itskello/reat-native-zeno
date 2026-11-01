@@ -1,9 +1,10 @@
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { images } from "@/constants/images";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -30,6 +31,16 @@ export default function LegalDocumentScreen() {
   const selected = document && document in DOCUMENTS
     ? DOCUMENTS[document as keyof typeof DOCUMENTS]
     : null;
+  const documentUrl = selected?.url ?? null;
+  const webViewSource = useMemo(
+    () => documentUrl ? { uri: documentUrl } : undefined,
+    [documentUrl]
+  );
+
+  useEffect(() => {
+    setLoading(Boolean(documentUrl));
+    setFailed(false);
+  }, [documentUrl]);
 
   return (
     <View className="flex-1 bg-[#F4FAFF]" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
@@ -51,9 +62,9 @@ export default function LegalDocumentScreen() {
       {selected ? (
         <View className="relative flex-1 overflow-hidden rounded-t-[24px] bg-white">
           <WebView
-            source={{ uri: selected.url }}
+            source={webViewSource}
             className="flex-1 bg-white"
-            onLoadStart={() => { setLoading(true); setFailed(false); }}
+            onLoadStart={() => setFailed(false)}
             onLoadEnd={() => setLoading(false)}
             onError={() => { setLoading(false); setFailed(true); }}
             onHttpError={(event) => {
@@ -70,7 +81,7 @@ export default function LegalDocumentScreen() {
           />
           {loading ? (
             <View className="absolute inset-0 items-center justify-center bg-white">
-              <ActivityIndicator size="large" color="#C4EC5C" />
+              <ZenoLoading variant="blue" size={24} />
             </View>
           ) : null}
           {failed ? (

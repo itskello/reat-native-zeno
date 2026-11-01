@@ -1,12 +1,12 @@
 import { showLocalizedAlert } from "@/components/ui/LocalizedText";
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import * as Clipboard from "expo-clipboard";
-import { useUser } from "@clerk/clerk-expo";
+import { useUser } from "@clerk/expo";
 import { images } from "@/constants/images";
 import { useLanguageStore } from "@/store/language-store";
 import { Image } from "expo-image";
 import { router, type Href } from "expo-router";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Pressable, ScrollView, Share, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -21,7 +21,7 @@ export function ReferralScreen({ page }: { page: ReferralPage }) {
   const insets = useSafeAreaInsets();
   const { user } = useUser();
   const language = useLanguageStore((state) => state.language);
-  const [filter, setFilter] = useState("All");
+  const t = (en: string, fr: string) => language === "fr" ? fr : en;
   const code = useMemo(() => {
     const value = user?.publicMetadata?.referralCode;
     return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -30,25 +30,29 @@ export function ReferralScreen({ page }: { page: ReferralPage }) {
 
   const share = async () => {
     if (!link) {
-      showLocalizedAlert("Referral code unavailable", "Your referral link will appear here once it has been set up for your account.");
+      showLocalizedAlert(t("Referral code unavailable", "Code de parrainage indisponible"), t("Your referral link will appear here once your code is configured.", "Ton lien apparaîtra lorsque ton code sera configuré."));
       return;
     }
-    await Share.share({ message: `${language === "fr" ? "Rejoins-moi sur ZENO :" : "Join me on ZENO:"} ${link}`, url: link });
+    try {
+      await Share.share({ message: `${language === "fr" ? "Rejoins-moi sur ZENO :" : "Join me on ZENO:"} ${link}`, url: link });
+    } catch {
+      showLocalizedAlert(t("Unable to share", "Partage impossible"), t("Please try again.", "Réessaie dans un instant."));
+    }
   };
 
   const copyReferralLink = async () => {
     if (!link || !code) {
       showLocalizedAlert(
-        language === "fr" ? "Code indisponible" : "Referral code unavailable",
-        language === "fr" ? "Ton lien de parrainage apparaîtra quand ton code sera configuré." : "Your referral link will appear once your code is set up.",
+        t("Referral code unavailable", "Code de parrainage indisponible"),
+        t("Your referral link will appear once your code is set up.", "Ton lien de parrainage apparaîtra lorsque ton code sera configuré."),
       );
       return;
     }
     try {
       await Clipboard.setStringAsync(link);
-      showLocalizedAlert(language === "fr" ? "Lien copié" : "Link copied", language === "fr" ? `Ton lien contient le code ${code}.` : `Your link includes code ${code}.`);
+      showLocalizedAlert(t("Link copied", "Lien copié"), language === "fr" ? `Ton lien contient le code ${code}.` : `Your link includes code ${code}.`);
     } catch {
-      showLocalizedAlert(language === "fr" ? "Copie impossible" : "Copy failed", language === "fr" ? "Réessaie dans un instant." : "Please try again.");
+      showLocalizedAlert(t("Copy failed", "Copie impossible"), t("Please try again.", "Réessaie dans un instant."));
     }
   };
 
@@ -56,18 +60,25 @@ export function ReferralScreen({ page }: { page: ReferralPage }) {
     if (!code) return;
     try {
       await Clipboard.setStringAsync(code);
-      showLocalizedAlert(language === "fr" ? "Code copié" : "Code copied", language === "fr" ? "Ton code de parrainage est prêt à être partagé." : "Your referral code is ready to share.");
+      showLocalizedAlert(t("Code copied", "Code copié"), t("Your referral code is ready to share.", "Ton code de parrainage est prêt à être partagé."));
     } catch {
-      showLocalizedAlert(language === "fr" ? "Copie impossible" : "Copy failed", language === "fr" ? "Réessaie dans un instant." : "Please try again.");
+      showLocalizedAlert(t("Copy failed", "Copie impossible"), t("Please try again.", "Réessaie dans un instant."));
     }
   };
 
-  const title = ({ home: "Referral", invite: "Invite Friends", code: "Referral Code", earn: "Earn Rewards", summary: "Referral Summary", rewards: "Rewards" } satisfies Record<ReferralPage, string>)[page];
+  const title = ({
+    home: t("Referral", "Parrainage"),
+    invite: t("Invite friends", "Inviter des amis"),
+    code: t("Referral code", "Code de parrainage"),
+    earn: t("Earn rewards", "Gagner des récompenses"),
+    summary: t("Referral summary", "Résumé du parrainage"),
+    rewards: t("Rewards", "Récompenses"),
+  } satisfies Record<ReferralPage, string>)[page];
 
   return (
     <View className="flex-1 bg-[#F4FAFF]" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
       <View className="flex-row items-center gap-x-4 px-5 pt-3 pb-2">
-        <Pressable className="h-[46px] w-[46px] items-center justify-center rounded-[14px] bg-white shadow-low" onPress={() => router.back()} hitSlop={12} accessibilityLabel="Go back">
+        <Pressable className="h-[46px] w-[46px] items-center justify-center rounded-[14px] bg-white shadow-low" onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("Go back", "Retour")}>
           <Image source={images.back} style={{ width: 50, height: 50 }} contentFit="contain" />
         </Pressable>
         {page !== "home" && <Text className="ml-3 flex-1 text-[18px] font-bold text-[#071706]">{title}</Text>}
@@ -76,14 +87,14 @@ export function ReferralScreen({ page }: { page: ReferralPage }) {
         {page === "home" && <>
           <View className="mt-5 overflow-hidden rounded-[28px] bg-[#EAF6FF] p-5">
             <View className="max-w-[86%]">
-              <Text className="text-[25px] font-bold leading-[31px] text-[#071706]">{language === "fr" ? "Parraine un ami et gagne 5 $" : "Invite a friend and earn $5"}</Text>
-              <Text className="mt-2 text-[14px] leading-[21px] text-[#526070]">{language === "fr" ? "Partage ton code. Tu recevras ta récompense lorsque ton ami s’inscrit et remplit les conditions de parrainage." : "Share your code. You’ll earn a reward when your friend joins and meets the referral requirements."}</Text>
+              <Text className="text-[25px] font-bold leading-[31px] text-[#071706]">{t("Invite a friend", "Parraine un ami")}</Text>
+              <Text className="mt-2 text-[14px] leading-[21px] text-[#526070]">{t("Share your referral code. Reward details will appear here when the referral programme is available.", "Partage ton code de parrainage. Les détails des récompenses apparaîtront lorsque le programme sera disponible.")}</Text>
             </View>
             <View className="mt-4 flex-row items-end justify-between">
               <View>
-                <Text className="text-[13px] font-medium text-[#6B7280]">{language === "fr" ? "Code de parrainage" : "Referral code"}</Text>
+                <Text className="text-[13px] font-medium text-[#6B7280]">{t("Referral code", "Code de parrainage")}</Text>
                 <Pressable onPress={copyReferralCode} disabled={!code} className="mt-1 flex-row items-center rounded-[14px] border border-dashed border-[#0F7153]/50 bg-white/80 px-3 py-2.5">
-                  <Text className="text-[16px] font-bold tracking-[1px] text-[#071706]">{code ?? (language === "fr" ? "Indisponible" : "Unavailable")}</Text>
+                  <Text className="text-[16px] font-bold tracking-[1px] text-[#071706]">{code ?? t("Unavailable", "Indisponible")}</Text>
                   {code ? <Text className="ml-2 text-[17px] font-semibold text-[#0F7153]">⧉</Text> : null}
                 </Pressable>
               </View>
@@ -94,78 +105,77 @@ export function ReferralScreen({ page }: { page: ReferralPage }) {
           <View className="mt-4 flex-row items-center rounded-[20px] bg-white p-4 shadow-low">
             <View className="mr-3 h-11 w-11 items-center justify-center rounded-[14px] bg-[#EAF6FF]"><RewardMarkInline /></View>
             <View>
-              <Text className="text-[13px] font-medium text-[#6B7280]">{language === "fr" ? "Total des gains" : "Total earnings"}</Text>
-              <Text className="mt-0.5 text-[20px] font-bold text-[#0057FF]">$0</Text>
+              <Text className="text-[13px] font-medium text-[#6B7280]">{t("Total earned", "Total des gains")}</Text>
+              <Text className="mt-0.5 text-[20px] font-bold text-[#0057FF]">—</Text>
             </View>
           </View>
 
-          <Text className="mb-3 mt-7 text-[14px] font-semibold uppercase tracking-wide text-[#6B7280]">{language === "fr" ? "Mes parrainages" : "My referrals"}</Text>
+          <Text className="mb-3 mt-7 text-[14px] font-semibold uppercase tracking-wide text-[#6B7280]">{t("My referrals", "Mes parrainages")}</Text>
           <View className="min-h-[220px] items-center justify-center rounded-[24px] bg-white px-5 py-8 shadow-low">
             <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-[#F4FAFF]"><PeopleIcon /></View>
-            <Text className="text-center text-[15px] font-medium text-[#8290A3]">{language === "fr" ? "Tu n’as pas encore de parrainage" : "You don’t have any referrals yet"}</Text>
+            <Text className="text-center text-[15px] font-medium text-[#8290A3]">{t("Referral activity will appear here when the programme is available.", "Les parrainages apparaîtront ici lorsque le programme sera disponible.")}</Text>
           </View>
         </>}
 
         {page === "invite" && <>
           <View className="mt-3 rounded-[26px] border border-[#EDF3D9] bg-[#F4FBDD] p-5">
-            <Text className="text-[19px] font-semibold text-[#071706]">Share your link</Text>
-            <Text className="mt-1 text-[15px] text-[#6B7280]">Send your unique link to friends.</Text>
-            <Pressable onPress={share} className="mt-5 flex-row items-center rounded-2xl bg-white px-4 py-4">
-              <Text numberOfLines={1} className="flex-1 text-[14px] text-[#071706]">{link ?? "Referral link not available yet"}</Text>
+            <Text className="text-[19px] font-semibold text-[#071706]">{t("Share your link", "Partager ton lien")}</Text>
+            <Text className="mt-1 text-[15px] text-[#6B7280]">{t("Send your unique link to friends.", "Envoie ton lien personnel à tes amis.")}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("Copy referral link", "Copier le lien de parrainage")} onPress={copyReferralLink} disabled={!link} className={`mt-5 flex-row items-center rounded-2xl px-4 py-4 ${link ? "bg-white" : "bg-gray-100"}`}>
+              <Text numberOfLines={1} className="flex-1 text-[14px] text-[#071706]">{link ?? t("Referral link unavailable", "Lien de parrainage indisponible")}</Text>
               <Text className="ml-2 text-[20px] text-[#276D32]">⧉</Text>
             </Pressable>
-            <Text className="mb-3 mt-7 text-[14px] font-semibold text-[#071706]">Share via</Text>
-            <View className="flex-row justify-between">{["WhatsApp", "Telegram", "Facebook", "Twitter", "More"].map((name, i) => <Pressable key={name} onPress={share} className="items-center"><View className={`h-12 w-12 items-center justify-center rounded-2xl ${i === 0 ? "bg-[#DFF7DA]" : "bg-white"}`}><Text className="text-[20px] font-bold" style={{ color: ["#20A44A", "#2AA6D7", "#1775EB", "#249BEA", DARK][i] }}>{["◉", "➤", "f", "♥", "•••"][i]}</Text></View><Text className="mt-2 text-[10px] text-[#6B7280]">{name}</Text></Pressable>)}</View>
+            <Pressable accessibilityRole="button" onPress={share} disabled={!link} className={`mt-4 min-h-12 items-center justify-center rounded-2xl ${link ? "bg-[#0057FF]" : "bg-gray-200"}`}>
+              <Text className={`font-semibold ${link ? "text-white" : "text-gray-500"}`}>{t("Share link", "Partager le lien")}</Text>
+            </Pressable>
           </View>
           <View className="mt-5 rounded-[24px] border border-gray-100 bg-white p-5">
-            <Text className="text-[18px] font-semibold text-[#071706]">Or invite from contacts</Text>
-            <Text className="mt-1 text-[14px] text-[#6B7280]">Share your invite link with people you know.</Text>
-            <Pressable onPress={share} className="mt-4 min-h-12 items-center justify-center rounded-2xl border border-gray-100 bg-white"><Text className="font-semibold text-[#071706]">Invite Contacts</Text></Pressable>
+            <Text className="text-[18px] font-semibold text-[#071706]">{t("Invite friends", "Inviter des amis")}</Text>
+            <Text className="mt-1 text-[14px] text-[#6B7280]">{t("Share your link using the apps available on your phone.", "Partage ton lien avec les applications disponibles sur ton téléphone.")}</Text>
+            <Pressable accessibilityRole="button" onPress={share} disabled={!link} className={`mt-4 min-h-12 items-center justify-center rounded-2xl ${link ? "border border-gray-100 bg-white" : "bg-gray-100"}`}><Text className="font-semibold text-[#071706]">{t("Choose an app", "Choisir une application")}</Text></Pressable>
           </View>
-          <View className="mt-5 rounded-[24px] bg-[#102016] p-5"><Text className="text-[14px] text-white">Your Code</Text><Text className="mt-2 text-[24px] font-bold" style={{ color: GREEN }}>{code ?? "Not available"}</Text><Text className="mt-1 text-[14px] leading-5 text-white/80">Share your code. Your friends can join ZENO using your referral link.</Text></View>
+          <View className="mt-5 rounded-[24px] bg-[#102016] p-5"><Text className="text-[14px] text-white">{t("Your code", "Ton code")}</Text><Text className="mt-2 text-[24px] font-bold" style={{ color: GREEN }}>{code ?? t("Unavailable", "Indisponible")}</Text><Text className="mt-1 text-[14px] leading-5 text-white/80">{t("Friends can use your referral code when joining ZENO.", "Tes amis pourront utiliser ton code en rejoignant ZENO.")}</Text></View>
         </>}
 
         {page === "code" && <View className="mt-3 rounded-[26px] border border-gray-100 bg-white p-5">
-          <Text className="font-semibold text-[#071706]">Your Referral Code</Text>
-          <Pressable onPress={share} className="mt-4 flex-row items-center justify-center rounded-2xl border border-dashed border-[#C7FF4A] bg-[#F5FBDD] p-4"><Text className="text-[25px] font-bold text-[#071706]">{code ?? "Not available"}</Text><Text className="ml-3 text-[20px]">⧉</Text></Pressable>
-          <Text className="my-5 text-center text-[13px] text-[#6B7280]">{code ? "Share this code with friends" : "Your referral code will show here when available"}</Text>
-          <Text className="font-semibold text-[#071706]">Referral Link</Text>
-          <Pressable onPress={share} className="mt-3 flex-row items-center rounded-2xl bg-[#F4FBDD] p-4"><Text numberOfLines={1} className="flex-1 text-[14px] text-[#071706]">{link ?? "Link not available"}</Text><Text className="ml-2 text-[19px]">⧉</Text></Pressable>
-          <Text className="mb-3 mt-7 font-semibold text-[#071706]">Share your code anywhere</Text>
-          {["Share on WhatsApp", "Share on Telegram", "Share on Facebook", "Share via SMS", "More Options"].map((label, i) => <Pressable key={label} onPress={share} className={`flex-row items-center border-t border-gray-100 py-4 ${i === 0 ? "border-t-0" : ""}`}><View className="h-8 w-8 items-center justify-center rounded-full bg-[#EFF8E6]"><Text>{["◉", "➤", "f", "▣", "•••"][i]}</Text></View><Text className="ml-3 flex-1 text-[14px] text-[#071706]">{label}</Text><Text className="text-[20px] text-[#9CA3AF]">›</Text></Pressable>)}
+          <Text className="font-semibold text-[#071706]">{t("Your referral code", "Ton code de parrainage")}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("Copy referral code", "Copier le code de parrainage")} disabled={!code} onPress={copyReferralCode} className="mt-4 flex-row items-center justify-center rounded-2xl border border-dashed border-[#C7FF4A] bg-[#F5FBDD] p-4"><Text className="text-[25px] font-bold text-[#071706]">{code ?? t("Unavailable", "Indisponible")}</Text><Text className="ml-3 text-[20px]">⧉</Text></Pressable>
+          <Text className="my-5 text-center text-[13px] text-[#6B7280]">{t("Tap the code to copy it.", "Touchez le code pour le copier.")}</Text>
+          <Text className="font-semibold text-[#071706]">{t("Referral link", "Lien de parrainage")}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("Copy referral link", "Copier le lien de parrainage")} disabled={!link} onPress={copyReferralLink} className={`mt-3 flex-row items-center rounded-2xl p-4 ${link ? "bg-[#F4FBDD]" : "bg-gray-100"}`}><Text numberOfLines={1} className="flex-1 text-[14px] text-[#071706]">{link ?? t("Link unavailable", "Lien indisponible")}</Text><Text className="ml-2 text-[19px]">⧉</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={share} disabled={!link} className={`mt-5 min-h-12 items-center justify-center rounded-2xl ${link ? "bg-[#0057FF]" : "bg-gray-200"}`}><Text className={`font-semibold ${link ? "text-white" : "text-gray-500"}`}>{t("Share link", "Partager le lien")}</Text></Pressable>
         </View>}
 
         {page === "earn" && <>
-          <View className="mt-3 rounded-[24px] bg-[#102016] p-5"><Text className="text-[22px] font-bold text-white">Earn Rewards</Text><Text className="mt-2 max-w-[220px] text-[15px] leading-5 text-white/80">The more friends you invite, the more you can earn.</Text><RewardMark /></View>
-          <View className="mt-5 rounded-[24px] border border-gray-100 bg-white p-5"><Text className="font-semibold text-[#071706]">Total Earned</Text><Text className="mt-2 text-[28px] font-bold text-[#16813D]">—</Text><Text className="mt-4 border-t border-gray-100 pt-4 text-[14px] text-[#6B7280]">Rewards information will appear here when available.</Text></View>
-          <Text className="mb-3 mt-6 text-[18px] font-semibold text-[#071706]">How you earn</Text>
-          <RuleRow title="When a friend joins ZENO" detail="You may receive a reward" />
-          <RuleRow title="When a friend makes their first transaction" detail="Eligibility and reward amount depend on the current referral terms." />
+          <View className="mt-3 rounded-[24px] bg-[#102016] p-5"><Text className="text-[22px] font-bold text-white">{t("Earn rewards", "Gagner des récompenses")}</Text><Text className="mt-2 max-w-[260px] text-[15px] leading-5 text-white/80">{t("Referral rewards will be shown here when the programme is available.", "Les récompenses de parrainage seront affichées ici lorsque le programme sera disponible.")}</Text><RewardMark /></View>
+          <View className="mt-5 rounded-[24px] border border-gray-100 bg-white p-5"><Text className="font-semibold text-[#071706]">{t("Total earned", "Total des gains")}</Text><Text className="mt-2 text-[28px] font-bold text-[#16813D]">—</Text><Text className="mt-4 border-t border-gray-100 pt-4 text-[14px] text-[#6B7280]">{t("Earnings are not available yet.", "Les gains ne sont pas encore disponibles.")}</Text></View>
+          <Text className="mb-3 mt-6 text-[18px] font-semibold text-[#071706]">{t("How it works", "Comment ça marche")}</Text>
+          <RuleRow title={t("Invite a friend", "Parraine un ami")} detail={t("Share your code or link when the referral programme is enabled.", "Partage ton code ou ton lien lorsque le programme de parrainage sera activé.")} />
+          <RuleRow title={t("Reward terms", "Conditions des récompenses")} detail={t("Eligibility and reward amounts will be shown here once confirmed by ZENO.", "Les critères et montants seront affichés ici lorsqu’ils auront été confirmés par ZENO.")} />
         </>}
 
         {page === "summary" && <>
-          <View className="mt-3 flex-row rounded-2xl bg-white p-1">{["All", "Joined", "Earned"].map((item) => <Pressable key={item} onPress={() => setFilter(item)} className={`flex-1 items-center rounded-xl py-3 ${filter === item ? "bg-[#C7FF4A]" : ""}`}><Text className="font-semibold text-[#071706]">{item}</Text></Pressable>)}</View>
-          <View className="mt-5 flex-row rounded-[24px] border border-gray-100 bg-white p-4">{[["Invited", "—"], ["Joined", "—"], ["Earned", "—"]].map(([label, value]) => <View key={label} className="flex-1 items-center border-r border-gray-100 last:border-0"><Text className="text-[12px] text-[#6B7280]">{label}</Text><Text className="mt-1 text-[22px] font-bold text-[#071706]">{value}</Text></View>)}</View>
-          <Text className="mb-3 mt-8 text-[18px] font-semibold text-[#071706]">Recent Activity</Text><View className="items-center rounded-[24px] border border-gray-100 bg-white px-5 py-10"><Text className="text-[16px] font-semibold text-[#071706]">No referral activity yet</Text><Text className="mt-2 text-center text-[14px] text-[#6B7280]">Your invitations and rewards will appear here.</Text><Pressable onPress={() => go("/settings/referral/invite")}><Text className="mt-4 font-semibold text-[#16813D]">Invite a friend</Text></Pressable></View>
+          <View className="mt-5 flex-row rounded-[24px] border border-gray-100 bg-white p-4">{[[t("Invited", "Invités"), "—"], [t("Joined", "Inscrits"), "—"], [t("Earned", "Gagnés"), "—"]].map(([label, value]) => <View key={label} className="flex-1 items-center border-r border-gray-100 last:border-0"><Text className="text-[12px] text-[#6B7280]">{label}</Text><Text className="mt-1 text-[22px] font-bold text-[#071706]">{value}</Text></View>)}</View>
+          <Text className="mb-3 mt-8 text-[18px] font-semibold text-[#071706]">{t("Recent activity", "Activité récente")}</Text><View className="items-center rounded-[24px] border border-gray-100 bg-white px-5 py-10"><Text className="text-[16px] font-semibold text-[#071706]">{t("Activity is not available yet.", "L’activité n’est pas encore disponible.")}</Text><Text className="mt-2 text-center text-[14px] text-[#6B7280]">{t("Referral tracking will appear here when the service is connected.", "Le suivi des parrainages apparaîtra ici lorsque le service sera connecté.")}</Text><Pressable accessibilityRole="button" onPress={() => go("/settings/referral/invite")}><Text className="mt-4 font-semibold text-[#16813D]">{t("Share an invitation", "Partager une invitation")}</Text></Pressable></View>
         </>}
 
         {page === "rewards" && <>
-          <View className="mt-3 rounded-[24px] bg-[#102016] p-5"><Text className="text-[14px] text-white/80">Your Balance</Text><Text className="mt-3 text-[34px] font-bold text-white">—</Text><Text className="mt-2 text-[14px] text-white/80">Total Rewards Earned</Text><RewardMark /></View>
-          <Text className="mb-3 mt-7 text-[18px] font-semibold text-[#071706]">Withdraw Rewards</Text><View className="rounded-[22px] border border-gray-100 bg-white p-4"><Text className="font-semibold text-[#071706]">ZENO Wallet</Text><Text className="mt-1 text-[14px] text-[#6B7280]">Instant transfer to your wallet</Text></View>
-          <PrimaryButton label="Withdraw Now" onPress={() => showLocalizedAlert("Rewards unavailable", "Reward balance and payouts will be available once the referral service is connected.")} />
-          <View className="mb-3 mt-8 flex-row items-center justify-between"><Text className="text-[18px] font-semibold text-[#071706]">Payout History</Text><Text className="text-[14px] text-[#6B7280]">View all</Text></View><View className="items-center rounded-[22px] border border-gray-100 bg-white px-5 py-8"><Text className="text-[14px] text-[#6B7280]">No payouts yet</Text></View>
+          <View className="mt-3 rounded-[24px] bg-[#102016] p-5"><Text className="text-[14px] text-white/80">{t("Available rewards", "Récompenses disponibles")}</Text><Text className="mt-3 text-[34px] font-bold text-white">—</Text><Text className="mt-2 text-[14px] text-white/80">{t("Balance unavailable", "Solde indisponible")}</Text><RewardMark /></View>
+          <Text className="mb-3 mt-7 text-[18px] font-semibold text-[#071706]">{t("Withdraw rewards", "Retirer les récompenses")}</Text><View className="rounded-[22px] border border-gray-100 bg-white p-4"><Text className="font-semibold text-[#071706]">{t("ZENO Wallet", "Portefeuille ZENO")}</Text><Text className="mt-1 text-[14px] text-[#6B7280]">{t("Payouts will be available when the referral service is connected.", "Les retraits seront disponibles lorsque le service de parrainage sera connecté.")}</Text></View>
+          <PrimaryButton label={t("Withdraw unavailable", "Retrait indisponible")} onPress={() => showLocalizedAlert(t("Rewards unavailable", "Récompenses indisponibles"), t("Reward balance and payouts will be available once the referral service is connected.", "Le solde et le retrait des récompenses seront disponibles lorsque le service de parrainage sera connecté."))} disabled />
+          <View className="mb-3 mt-8 flex-row items-center justify-between"><Text className="text-[18px] font-semibold text-[#071706]">{t("Payout history", "Historique des retraits")}</Text></View><View className="items-center rounded-[22px] border border-gray-100 bg-white px-5 py-8"><Text className="text-[14px] text-[#6B7280]">{t("No payout history is available yet.", "Aucun retrait n’est disponible pour le moment.")}</Text></View>
         </>}
       </ScrollView>
       {page === "home" && <View className="px-5 pb-3 pt-2" style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
         <Pressable onPress={copyReferralLink} className="h-[58px] items-center justify-center rounded-[20px] bg-[#0057FF]" style={({ pressed }) => ({ opacity: pressed ? 0.86 : 1 })}>
-          <Text className="text-[16px] font-bold text-white">{language === "fr" ? "Partager le lien" : "Share referral link"}</Text>
+          <Text className="text-[16px] font-bold text-white">{t("Share referral link", "Partager le lien")}</Text>
         </Pressable>
       </View>}
     </View>
   );
 }
 
-function PrimaryButton({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} className="mt-5 min-h-[50px] items-center justify-center rounded-2xl" style={{ backgroundColor: GREEN }}><Text className="font-bold text-[#071706]">{label}</Text></Pressable>; }
+function PrimaryButton({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) { return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled }} className={`mt-5 min-h-[50px] items-center justify-center rounded-2xl ${disabled ? "bg-gray-200" : "bg-[#C7FF4A]"}`}><Text className={`font-bold ${disabled ? "text-gray-500" : "text-[#071706]"}`}>{label}</Text></Pressable>; }
 function MenuRow({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} className="mt-3 flex-row items-center rounded-2xl border border-gray-100 bg-white px-4 py-4"><Text className="flex-1 font-semibold text-[#071706]">{label}</Text><Text className="text-[21px] text-[#6B7280]">›</Text></Pressable>; }
 function RuleRow({ title, detail }: { title: string; detail: string }) { return <View className="mb-3 rounded-2xl border border-gray-100 bg-white p-4"><Text className="font-semibold text-[#071706]">{title}</Text><Text className="mt-1 text-[14px] leading-5 text-[#6B7280]">{detail}</Text></View>; }
 function ReferralIllustration() {

@@ -1,6 +1,6 @@
 import { VerifyCodeScreen } from "@/components/auth/VerifyCodeScreen";
 import { getClerkErrorMessage } from "@/lib/clerk-error";
-import { useSignIn } from "@clerk/clerk-expo";
+import { useSignIn } from "@clerk/expo/legacy";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
 
@@ -18,7 +18,7 @@ export default function VerifyMfaScreen() {
 
   const handleVerify = useCallback(
     async (code: string) => {
-      if (!isLoaded || !signIn) return;
+      if (!isLoaded || !signIn) return false;
 
       setIsVerifying(true);
       setError(null);
@@ -33,13 +33,16 @@ export default function VerifyMfaScreen() {
           await setActive({ session: attempt.createdSessionId });
           // Session active — route to PIN unlock (same as normal sign-in)
           router.replace("/verify-pin");
+          return true;
         } else {
           setError("Verification incomplete. Please try again.");
+          return false;
         }
       } catch (cause) {
         setError(
           getClerkErrorMessage(cause, "Invalid code. Please check and try again.")
         );
+        return false;
       } finally {
         setIsVerifying(false);
       }
@@ -48,20 +51,21 @@ export default function VerifyMfaScreen() {
   );
 
   const handleResend = useCallback(async () => {
-    if (!isLoaded || !signIn) return;
+    if (!isLoaded || !signIn) return false;
     try {
       // Re-prepare the email_code factor to resend the OTP
       const emailFactor = signIn.supportedSecondFactors?.find(
-        (f: any) => f.strategy === "email_code"
+        (factor) => factor.strategy === "email_code"
       );
-      if (emailFactor) {
-        await signIn.prepareSecondFactor({
-          strategy: "email_code",
-          emailAddressId: (emailFactor as any).emailAddressId,
-        });
-      }
+      if (!emailFactor) return false;
+      await signIn.prepareSecondFactor({
+        strategy: "email_code",
+        emailAddressId: emailFactor.emailAddressId,
+      });
+      return true;
     } catch {
       // Silent — user sees the resend button state
+      return false;
     }
   }, [isLoaded, signIn]);
 

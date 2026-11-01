@@ -1,14 +1,15 @@
 import { LocalizedText as Text, LocalizedTextInput as TextInput, showLocalizedAlert } from "@/components/ui/LocalizedText";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { SendUpIcon } from "@/components/ui/ProfileIcons";
 import { images } from "@/constants/images";
 import { postAuthenticated } from "@/lib/api";
 import { useLanguageStore } from "@/store/language-store";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import { StreamChat, type Channel, type Event, type LocalMessage, type MessageResponse } from "stream-chat";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 
@@ -189,7 +190,7 @@ export default function SupportChatScreen() {
       if (credentials?.status === "ai") {
         const sessionToken = await getTokenRef.current();
         if (!sessionToken) throw new Error("Session expirée. Reconnecte-toi.");
-        const response = await postAuthenticated<{ answered?: boolean; handedOff?: boolean }>("/api/support/assistant", sessionToken, { channelId: credentials.channelId, messageId: sent.message.id });
+        const response = await postAuthenticated<{ answered?: boolean; handedOff?: boolean }>("/api/support/assistant", sessionToken, { channelId: credentials.channelId, messageId: sent.message.id, language });
         if (!response.ok) throw new Error(response.error);
       }
     } catch {
@@ -202,7 +203,7 @@ export default function SupportChatScreen() {
     } finally {
       setSending(false);
     }
-  }, [credentials, sending]);
+  }, [credentials, language, sending]);
 
   const requestHumanAgent = useCallback(async () => {
     const sessionToken = await getTokenRef.current();
@@ -246,7 +247,7 @@ export default function SupportChatScreen() {
       </View> : null}
 
       <ScrollView ref={scrollRef} className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: 16, flexGrow: 1 }} onContentSizeChange={() => { if (lines.length > 0) scrollRef.current?.scrollToEnd({ animated: true }); }}>
-        {status === "loading" && <View className="flex-1 items-center justify-center"><ActivityIndicator color="#0A1712" /><Text className="mt-3 text-[14px] text-zeno-text-secondary">Connexion à l’assistance…</Text></View>}
+        {status === "loading" && <View className="flex-1 items-center justify-center"><ZenoLoading variant="blue" size={24} /><Text className="mt-1 text-[14px] text-zeno-text-secondary">{language === "fr" ? "Connexion à l’assistance…" : "Connecting to support…"}</Text></View>}
         {status === "error" && <View className="flex-1 items-center justify-center px-5"><Text className="text-center text-[15px] font-medium text-zeno-text-primary">{error}</Text><Pressable onPress={() => void connectConversation()} className="mt-4 rounded-full bg-[#0A1712] px-6 py-3"><Text className="font-semibold text-white">Réessayer</Text></Pressable></View>}
         {status === "ready" && lines.length === 0 && <View className="items-start px-2 pt-4">
           <View className="mb-2 flex-row items-center gap-x-2">
@@ -280,7 +281,7 @@ export default function SupportChatScreen() {
         <View className="flex-row items-end gap-x-2 rounded-[24px] border border-gray-200 bg-[#F4FAFF] py-2 pl-4 pr-2">
           <TextInput value={inputText} onChangeText={setInputText} placeholder={language === "fr" ? "Pose une question…" : "Ask a question…"} placeholderTextColor="#9CA3AF" multiline className="min-h-[36px] max-h-[100px] flex-1 text-[15px] font-medium leading-[22px] text-zeno-text-primary" allowFontScaling={false} returnKeyType="send" onSubmitEditing={() => void sendMessage(inputText)} blurOnSubmit={false} editable={status === "ready" && !sending} />
           <Pressable disabled={!inputText.trim() || sending || status !== "ready"} onPress={() => void sendMessage(inputText)} className="mb-0.5 h-9 w-9 items-center justify-center rounded-full bg-[#0A1712]" style={({ pressed }) => ({ opacity: pressed || sending ? 0.6 : 1 })}>
-            {sending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <SendUpIcon size={16} color="#FFFFFF" />}
+            {sending ? <ZenoLoading variant="blue" size={22} color="#FFFFFF" /> : <SendUpIcon size={16} color="#FFFFFF" />}
           </Pressable>
         </View>
       </View>

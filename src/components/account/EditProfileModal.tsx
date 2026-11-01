@@ -1,13 +1,14 @@
 import { showLocalizedAlert } from "@/components/ui/LocalizedText";
 import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { CameraLensIcon, CloseIcon } from "@/components/ui/ProfileIcons";
 import { images } from "@/constants/images";
-import { useUser } from "@clerk/clerk-expo";
+import { useUser } from "@clerk/expo";
 import { Image } from "expo-image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-    ActivityIndicator, Modal, Pressable, ScrollView, View } from "react-native";
+    Modal, Pressable, ScrollView, View } from "react-native";
 
 type EditProfileModalProps = {
   visible: boolean;
@@ -16,16 +17,26 @@ type EditProfileModalProps = {
 
 export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
   const { user } = useUser();
-  const [firstName, setFirstName] = useState(user?.firstName ?? "Jelell");
-  const [lastName, setLastName] = useState(user?.lastName ?? "Hee");
-  const [email, setEmail] = useState(
-    user?.primaryEmailAddress?.emailAddress ?? "jelell.hee@example.com"
-  );
-  const [phoneNumber, setPhoneNumber] = useState(
-    user?.primaryPhoneNumber?.phoneNumber ?? "+229 97 00 11 22"
-  );
-  const [zenoTag, setZenoTag] = useState("@jelell_hee");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    setFirstName(user?.firstName ?? "");
+    setLastName(user?.lastName ?? "");
+    setEmail(user?.primaryEmailAddress?.emailAddress ?? "");
+    setPhoneNumber(user?.primaryPhoneNumber?.phoneNumber ?? "");
+  }, [
+    visible,
+    user?.id,
+    user?.firstName,
+    user?.lastName,
+    user?.primaryEmailAddress?.emailAddress,
+    user?.primaryPhoneNumber?.phoneNumber,
+  ]);
 
   const handleSave = async () => {
     setIsLoading(true);
@@ -88,7 +99,7 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
                 </View>
               </View>
               <Text allowFontScaling={false} className="mt-2 font-medium text-[13px] text-zeno-text-secondary">
-                ZENO ID: {zenoTag}
+                ZENO ID: {user?.username ? `@${user.username}` : "—"}
               </Text>
             </View>
 
@@ -153,7 +164,7 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
               className="mt-6 mb-4 h-14 items-center justify-center rounded-2xl bg-zeno-blue shadow-md"
             >
               {isLoading ? (
-                <ActivityIndicator color="#ffffff" />
+                <ZenoLoading variant="blue" size={24} color="#FFFFFF" />
               ) : (
                 <Text allowFontScaling={false} className="font-bold text-[18px] text-white">
                   Enregistrer les modifications

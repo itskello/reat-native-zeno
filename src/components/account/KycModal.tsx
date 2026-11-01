@@ -2,12 +2,11 @@ import { images } from "@/constants/images";
 import { supportedCountries } from "@/data/countries";
 import { submitKycVerification, type KycCapture } from "@/features/kyc/kyc-service";
 import type { CountryId, KycDocumentType } from "@/types/content";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import {
-  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -84,27 +83,31 @@ export function KycModal({ visible, onClose, status, countryId = "benin", onStat
 
   const capture = async (kind: "front" | "back" | "selfie") => {
     setError("");
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      setError(t("Allow camera access in your phone settings to take this photo.", "Autorisez l’accès à la caméra dans les réglages du téléphone pour prendre cette photo."));
-      return;
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        setError(t("Allow camera access in your phone settings to take this photo.", "Autorisez l’accès à la caméra dans les réglages du téléphone pour prendre cette photo."));
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        cameraType: kind === "selfie" ? ImagePicker.CameraType.front : ImagePicker.CameraType.back,
+        allowsEditing: false,
+        quality: 0.85,
+      });
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
+      const photo: KycCapture = {
+        uri: asset.uri,
+        name: `${kind}-${Date.now()}.jpg`,
+        type: asset.mimeType ?? "image/jpeg",
+      };
+      if (kind === "front") setFront(photo);
+      else if (kind === "back") setBack(photo);
+      else setSelfie(photo);
+    } catch {
+      setError(t("The camera could not be opened. Check camera access and try again.", "Impossible d’ouvrir la caméra. Vérifiez son autorisation puis réessayez."));
     }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ["images"],
-      cameraType: kind === "selfie" ? ImagePicker.CameraType.front : ImagePicker.CameraType.back,
-      allowsEditing: false,
-      quality: 0.85,
-    });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    const photo: KycCapture = {
-      uri: asset.uri,
-      name: `${kind}-${Date.now()}.jpg`,
-      type: asset.mimeType ?? "image/jpeg",
-    };
-    if (kind === "front") setFront(photo);
-    else if (kind === "back") setBack(photo);
-    else setSelfie(photo);
   };
 
   const submit = async () => {
@@ -149,9 +152,19 @@ export function KycModal({ visible, onClose, status, countryId = "benin", onStat
   );
 
   const capturePanel = (photo: KycCapture | null, onCapture: () => void, captureLabel: string) => (
-    <Pressable onPress={onCapture} className="h-[210px] items-center justify-center overflow-hidden rounded-[24px] border border-[#D9E4E9] bg-[#EAF6FF]">
+    <Pressable
+      onPress={onCapture}
+      accessibilityRole="button"
+      accessibilityLabel={photo ? t("Retake photo", "Reprendre la photo") : captureLabel}
+      className="h-[210px] items-center justify-center overflow-hidden rounded-[24px] border border-[#D9E4E9] bg-[#EAF6FF]"
+    >
       {photo ? (
-        <Image source={{ uri: photo.uri }} contentFit="cover" style={{ width: "100%", height: "100%" }} />
+        <>
+          <Image source={{ uri: photo.uri }} contentFit="cover" style={{ width: "100%", height: "100%" }} />
+          <View className="absolute bottom-3 rounded-full bg-zeno-dark/85 px-4 py-2">
+            <Text className="text-[13px] font-semibold text-white">{t("Tap to retake", "Toucher pour reprendre")}</Text>
+          </View>
+        </>
       ) : (
         <View className="items-center px-6">
           <View className="h-16 w-16 items-center justify-center rounded-full bg-zeno-green">
@@ -306,7 +319,6 @@ export function KycModal({ visible, onClose, status, countryId = "benin", onStat
           })}
           {activeStep === "review" && mainButton(submitting ? t("Sending…", "Envoi…") : t("Submit for review", "Envoyer pour vérification"), submit, submitting)}
           {isPending && mainButton(t("Done", "Terminer"), close)}
-          {submitting ? <ActivityIndicator className="mt-2" color="#0057FF" /> : null}
         </View>
       </View>
     </Modal>

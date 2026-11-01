@@ -12,7 +12,8 @@ import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { images } from "@/constants/images";
 import { Image } from "expo-image";
 import { ZenoCardLogo } from "@/components/wallet/ZenoCardLogo";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { PinProcessingOverlay } from "@/components/auth/PinProcessingOverlay";
+import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const LIME = "#B9E057"; // Exact Figma color
@@ -122,20 +123,6 @@ export function CardPinEntryScreen({
         </View>
       ) : null}
 
-      {/* Busy indicator */}
-      {busy ? (
-        <View className="mt-6 items-center">
-          <ActivityIndicator size="large" color={DARK} />
-          <Text
-            allowFontScaling={false}
-            className="mt-2 text-[14px]"
-            style={{ color: DARK + "99" }}
-          >
-            Verifying...
-          </Text>
-        </View>
-      ) : null}
-
       <View className="flex-1" />
 
       {/* Numpad */}
@@ -184,6 +171,7 @@ export function CardPinEntryScreen({
           </View>
         ))}
       </View>
+      <PinProcessingOverlay visible={busy} variant="green" />
     </View>
   );
 }

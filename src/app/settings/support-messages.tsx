@@ -1,13 +1,14 @@
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { ArrowRightIcon, NoConversationsIcon } from "@/components/ui/ProfileIcons";
 import { images } from "@/constants/images";
 import { getAuthenticated } from "@/lib/api";
 import { useLanguageStore } from "@/store/language-store";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type ConversationSummary = {
@@ -74,7 +75,7 @@ export default function SupportMessagesScreen() {
           <Text allowFontScaling={false} className="text-[22px] font-bold text-zeno-text-primary">Messages</Text>
         </View>
 
-        {loading ? <View className="flex-1 items-center justify-center"><ActivityIndicator color="#0A1712" /></View> : loadError ? <View className="flex-1 items-center justify-center"><Text className="px-6 text-center text-[14px] text-zeno-text-secondary">{loadError}</Text></View> : conversation ? <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 12, paddingBottom: 20 }}>
+        {loading ? <ZenoLoading variant="blue" size={24} className="flex-1" /> : loadError ? <View className="flex-1 items-center justify-center"><Text className="px-6 text-center text-[14px] text-zeno-text-secondary">{loadError}</Text></View> : conversation ? <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 12, paddingBottom: 20 }}>
           <View className="rounded-[24px] border border-gray-100/60 bg-white p-5 shadow-low">
             <View className="flex-row items-center gap-x-3">
               <View className="h-11 w-11 items-center justify-center rounded-full bg-[#0A1712]"><Image source={images.logoWhite} style={{ width: 24, height: 15 }} contentFit="contain" /></View>

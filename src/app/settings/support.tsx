@@ -4,7 +4,7 @@ import { PersonPlusIcon } from "@/components/ui/PersonPlusIcon";
 import { images } from "@/constants/images";
 import { getAuthenticated } from "@/lib/api";
 import { useLanguageStore } from "@/store/language-store";
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { Image } from "expo-image";
 import { router, useFocusEffect, type Href } from "expo-router";
 import { useCallback, useState } from "react";

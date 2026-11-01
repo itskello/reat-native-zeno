@@ -3,10 +3,12 @@ import { requestPhoneOtp } from "@/lib/api";
 import { getClerkErrorMessage } from "@/lib/clerk-error";
 import { toE164 } from "@/lib/phone";
 import { useOnboardingStore } from "@/store/onboarding-store";
-import { useSignUp } from "@clerk/clerk-expo";
+import { useSignUp } from "@clerk/expo/legacy";
 import { useCallback, useState } from "react";
 
 type StartSignUpInput = {
+  firstName: string;
+  lastName: string;
   email: string;
   phoneNumber: string;
   password: string;
@@ -32,7 +34,7 @@ export function useStartSignUp() {
   const [error, setError] = useState<string | null>(null);
 
   const startSignUp = useCallback(
-    async ({ email, phoneNumber, password, country, residencyCountryId }: StartSignUpInput) => {
+    async ({ firstName, lastName, email, phoneNumber, password, country, residencyCountryId }: StartSignUpInput) => {
       if (!isLoaded || !signUp) {
         setError("Sign-up is not ready yet. Please try again.");
         return false;
@@ -47,6 +49,8 @@ export function useStartSignUp() {
         // No phoneNumber here: giving it to Clerk would demand Clerk's own SMS
         // verification, which does not reach our markets.
         await signUp.create({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
           emailAddress: email,
           password,
           unsafeMetadata: {

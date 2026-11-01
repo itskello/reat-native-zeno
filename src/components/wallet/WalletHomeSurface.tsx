@@ -12,7 +12,7 @@ import { useTransactionStore } from "@/store/transaction-store";
 import { cardDragY } from "@/store/wallet-gesture";
 import { useWalletNav } from "@/store/wallet-nav";
 import { useWalletStore } from "@/store/wallet-store";
-import { useUser } from "@clerk/clerk-expo";
+import { useUser } from "@clerk/expo";
 import { Image } from "expo-image";
 import { useCallback, useEffect } from "react";
 import { Pressable, View, useWindowDimensions } from "react-native";
@@ -83,7 +83,7 @@ export function WalletHomeSurface({
     ? { uri: user.imageUrl }
     : images.avatarPlaceholder;
 
-  const balanceLabel = formatAmount(wallet?.balance ?? 0, currency);
+  const balanceLabel = wallet ? formatAmount(wallet.balance, currency) : "—";
 
   // Stable callbacks — prevent WalletHeroCard and TransactionItem from re-rendering
   // every time scrollY, collapse, or any other shared value changes.

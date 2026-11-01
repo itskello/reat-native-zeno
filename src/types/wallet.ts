@@ -48,6 +48,13 @@ export type Transaction = {
   reference?: string;
   paymentMethod?: string;
   note?: string;
+  /** UI copy variants for fields that must follow the app language after creation. */
+  localized?: Partial<Record<"en" | "fr", {
+    title?: string;
+    description?: string;
+    paymentMethod?: string;
+    note?: string;
+  }>>;
   sentAmountXof?: number;
   exchangeRate?: string;
 };

@@ -1,5 +1,5 @@
 import { getClerkErrorMessage } from "@/lib/clerk-error";
-import { useSignIn } from "@clerk/clerk-expo";
+import { useSignIn } from "@clerk/expo/legacy";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
 
@@ -45,7 +45,7 @@ export function useEmailSignIn() {
         // ── MFA: Clerk requires a second factor (email OTP) ──────────────────
         if (attempt.status === "needs_second_factor") {
           const emailFactor = attempt.supportedSecondFactors?.find(
-            (f: any) => f.strategy === "email_code"
+            (factor) => factor.strategy === "email_code"
           );
 
           if (emailFactor) {

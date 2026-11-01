@@ -1,6 +1,8 @@
 import { showLocalizedAlert } from "@/components/ui/LocalizedText";
 import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
+import { PinProcessingOverlay } from "@/components/auth/PinProcessingOverlay";
 import {Chevron } from "@/components/ui/Chevron";
 import { CloseIcon } from "@/components/ui/CloseIcon";
 import { PersonPlusIcon } from "@/components/ui/PersonPlusIcon";
@@ -9,6 +11,7 @@ import { supportedCountries, formatPhoneNumber } from "@/data/countries";
 import { formatAmount, getCurrency } from "@/data/currencies";
 import { getProvidersForCountry } from "@/data/mobile-money-providers";
 import { getFinancialTitleSegments } from "@/lib/localization";
+import { concealMoney } from "@/lib/money-visibility";
 import { ZenoCardLogo } from "@/components/wallet/ZenoCardLogo";
 import { transferService, type TransferReceipt } from "@/features/transfers/transfer-service";
 import { useRecipientStore, type Recipient } from "@/store/recipient-store";
@@ -18,12 +21,12 @@ import { useWalletStore } from "@/store/wallet-store";
 import { useLanguageStore } from "@/store/language-store";
 import { colors } from "@/theme/colors";
 import type { SupportedCountry } from "@/types/content";
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/expo";
 import * as Crypto from "expo-crypto";
 import { Image } from "expo-image";
 import Svg, { Path } from "react-native-svg";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text as NativeText, View } from "react-native";
+import { Pressable, ScrollView, Text as NativeText, View } from "react-native";
 
 type FlowKind = "zeno" | "mobile";
 const PIN_LENGTH = 6;
@@ -58,6 +61,7 @@ export function TransferFlow({ contentTopGap, flow, onBackToMenu, initialRecipie
   const { user } = useUser();
   const language = useLanguageStore((state) => state.language);
   const wallet = useWalletStore((state) => state.wallet);
+  const isBalanceHidden = useWalletStore((state) => state.isBalanceHidden);
   const addRecentRecipient = useRecipientStore((state) => state.addRecentRecipient);
   const savedRecipients = useRecipientStore((state) => state.recent);
   const removeSavedRecipient = useRecipientStore((state) => state.removeRecipient);
@@ -348,6 +352,7 @@ export function TransferFlow({ contentTopGap, flow, onBackToMenu, initialRecipie
       ) : step === "mobile-amount" ? (
         <MobileMoneyAmountStep
           amount={amount}
+          isBalanceHidden={isBalanceHidden}
           balanceLabel={wallet
             ? wallet.currency === "USD"
               ? `${wallet.balance.toFixed(2)} USD`
@@ -367,6 +372,7 @@ export function TransferFlow({ contentTopGap, flow, onBackToMenu, initialRecipie
           flow={flow}
           recipientName={recipient?.name ?? ""}
           amount={amount}
+          isBalanceHidden={isBalanceHidden}
           balanceLabel={wallet ? formatAmount(wallet.balance, wallet.currency) : "—"}
           currencySymbol={currency.symbol}
           symbolPosition={currency.symbolPosition}
@@ -382,7 +388,7 @@ export function TransferFlow({ contentTopGap, flow, onBackToMenu, initialRecipie
           rows={[
             ["Recipient", recipient?.name ?? ""],
             ...(recipient?.zenoId ? [["ZENO ID", recipient.zenoId] as [string, string]] : []),
-            ["Amount", formattedAmount],
+            ["Amount", concealMoney(formattedAmount, isBalanceHidden)],
             ["Fee", "À confirmer par le serveur"],
           ]}
           buttonLabel="Continue"
@@ -438,7 +444,7 @@ export function TransferFlow({ contentTopGap, flow, onBackToMenu, initialRecipie
         />
       ) : step === "processing" ? (
         <View className="flex-1 items-center justify-center px-10">
-          <ActivityIndicator size="large" color={colors.zenoGreen} />
+          <ZenoLoading variant="green" />
           <Text allowFontScaling={false} className="mt-5 text-center font-semibold text-[19px] text-white">Traitement sécurisé du transfert…</Text>
           <Text allowFontScaling={false} className="mt-2 text-center text-[14px] text-white/60">Ne ferme pas cette étape.</Text>
         </View>
@@ -483,7 +489,7 @@ function SearchRecipients({ query, onQueryChange, recipients, isSavedList, isSea
       <TextInput value={query} onChangeText={onQueryChange} placeholder="Search recipient" placeholderTextColor="#858585" autoCapitalize="none" className="mt-5 h-[62px] rounded-full bg-[#F1F1F1] px-6 text-[16px] text-zeno-text-primary" accessibilityLabel="Search recipient" />
       <Text allowFontScaling={false} className="mb-3 mt-8 text-[17px] font-semibold text-zeno-text-primary">All Contacts</Text>
       {!isSavedList && isSearching ? (
-        <View className="items-center py-8"><ActivityIndicator color={colors.zenoBlue} /><Text className="mt-3 text-[14px] text-zeno-text-secondary">Recherche des utilisateurs…</Text></View>
+        <View className="flex-row items-center justify-center gap-x-2 py-5"><ZenoLoading variant="blue" size={20} /><Text className="text-[14px] text-zeno-text-secondary">Recherche des utilisateurs…</Text></View>
       ) : searchError ? (
         <ErrorText message={searchError} />
       ) : recipients.length ? recipients.map((item) => (
@@ -521,7 +527,7 @@ function AddRecipient({ name, email, onNameChange, onEmailChange, onSubmit, onCa
             <PersonPlusIcon size={30} color={colors.zenoDark} />
           </View>
           <View className="ml-3 h-[68px] min-w-[220px] flex-row items-center justify-center rounded-full bg-zeno-sky px-7">
-            {busy ? <ActivityIndicator color={colors.zenoDark} /> : <Text allowFontScaling={false} className="text-[20px] text-zeno-text-primary">Add Recipient</Text>}
+            {busy ? <ZenoLoading variant="blue" size={24} /> : <Text allowFontScaling={false} className="text-[20px] text-zeno-text-primary">Add Recipient</Text>}
           </View>
         </Pressable>
       </View>
@@ -637,8 +643,9 @@ function MobileRecipientStep({ country, onBackToCountries, providers, providerId
   );
 }
 
-function MobileMoneyAmountStep({ amount, balanceLabel, currencySymbol, decimalDigits, currencyCode, canContinue, onBack, onKey, onContinue, error }: {
+function MobileMoneyAmountStep({ amount, balanceLabel, currencySymbol, decimalDigits, currencyCode, canContinue, onBack, onKey, onContinue, error, isBalanceHidden }: {
   amount: string;
+  isBalanceHidden: boolean;
   balanceLabel: string;
   currencySymbol: string;
   decimalDigits: number;
@@ -649,6 +656,7 @@ function MobileMoneyAmountStep({ amount, balanceLabel, currencySymbol, decimalDi
   onContinue: () => void;
   error: string | null;
 }) {
+  const language = useLanguageStore((state) => state.language);
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", decimalDigits === 0 ? "" : ".", "0", "back"];
   const amountValue = Number(amount.replace(",", ".")) || 0;
   // The reference image itself shows $20 -> 15,000 FCFA. This is a visual
@@ -669,15 +677,15 @@ function MobileMoneyAmountStep({ amount, balanceLabel, currencySymbol, decimalDi
 
       <View className="mt-[48px] items-center">
         <View className="flex-row items-start justify-center">
-          <Text allowFontScaling={false} className="mr-1 mt-[5px] text-[28px] font-semibold leading-[34px] text-zeno-dark">{amountCurrencySymbol}</Text>
-          <Text allowFontScaling={false} className="text-[66px] font-bold leading-[74px] text-zeno-dark">{amount || "0"}</Text>
+          {!isBalanceHidden ? <Text allowFontScaling={false} className="mr-1 mt-[5px] text-[28px] font-semibold leading-[34px] text-zeno-dark">{amountCurrencySymbol}</Text> : null}
+          <Text allowFontScaling={false} className="text-[66px] font-bold leading-[74px] text-zeno-dark">{concealMoney(amount || "0", isBalanceHidden)}</Text>
         </View>
         <Text allowFontScaling={false} className="mt-3 text-center text-[16px] text-zeno-dark/60">
-          Your Current Balance Is <Text className="text-zeno-dark">{balanceLabel}</Text>
+          Your Current Balance Is <Text className="text-zeno-dark">{concealMoney(balanceLabel, isBalanceHidden)}</Text>
         </Text>
         <View className="mt-3 min-h-[48px] w-full max-w-[330px] flex-row items-center justify-center rounded-full bg-[#C8EA70] px-4">
           <Text allowFontScaling={false} numberOfLines={1} className="text-center text-[15px] text-zeno-dark/65">
-            The Recipient Will Receive <Text className="font-semibold text-zeno-dark">{recipientAmount === null ? "—" : `${recipientAmount.toLocaleString(language === "fr" ? "fr-FR" : "en-US")} F`}</Text>
+            The Recipient Will Receive <Text className="font-semibold text-zeno-dark">{recipientAmount === null ? "—" : concealMoney(`${recipientAmount.toLocaleString(language === "fr" ? "fr-FR" : "en-US")} F`, isBalanceHidden)}</Text>
           </Text>
         </View>
       </View>
@@ -699,19 +707,19 @@ function MobileMoneyAmountStep({ amount, balanceLabel, currencySymbol, decimalDi
   );
 }
 
-function AmountStep({ flow, recipientName, amount, balanceLabel, currencySymbol, symbolPosition, decimalDigits, canContinue, onKey, onContinue, error }: {
-  flow: FlowKind; recipientName: string; amount: string; balanceLabel: string; currencySymbol: string; symbolPosition: "prefix" | "suffix";
+function AmountStep({ flow, recipientName, amount, balanceLabel, currencySymbol, symbolPosition, decimalDigits, canContinue, onKey, onContinue, error, isBalanceHidden }: {
+  flow: FlowKind; recipientName: string; amount: string; balanceLabel: string; currencySymbol: string; symbolPosition: "prefix" | "suffix"; isBalanceHidden: boolean;
   decimalDigits: number; canContinue: boolean; onKey: (key: string) => void; onContinue: () => void; error: string | null;
 }) {
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", decimalDigits === 0 ? "" : ".", "0", "back"];
   return (
     <Panel className="items-center">
       {flow === "mobile" ? <View className="w-full flex-row items-center"><Text className="flex-1 text-[15px] text-zeno-text-secondary">{recipientName}</Text><Text className="font-medium text-[14px] text-zeno-text-primary">{currencySymbol}</Text></View> : null}
-      <Text allowFontScaling={false} className="mt-8 text-center text-[15px] text-zeno-text-secondary">{flow === "zeno" ? `Send to ${recipientName}` : `Your current balance is ${balanceLabel}`}</Text>
+      <Text allowFontScaling={false} className="mt-8 text-center text-[15px] text-zeno-text-secondary">{flow === "zeno" ? `Send to ${recipientName}` : `Your current balance is ${concealMoney(balanceLabel, isBalanceHidden)}`}</Text>
       <View className="mt-4 flex-row items-start justify-center">
-        {symbolPosition === "prefix" ? <Text allowFontScaling={false} className="mr-1 mt-2 text-[25px] font-semibold text-zeno-text-primary">{currencySymbol}</Text> : null}
-        <Text allowFontScaling={false} className="text-[54px] font-bold leading-[64px] text-zeno-text-primary">{amount || "0"}</Text>
-        {symbolPosition === "suffix" ? <Text allowFontScaling={false} className="ml-2 mt-5 text-[18px] font-semibold text-zeno-text-primary">{currencySymbol}</Text> : null}
+        {!isBalanceHidden && symbolPosition === "prefix" ? <Text allowFontScaling={false} className="mr-1 mt-2 text-[25px] font-semibold text-zeno-text-primary">{currencySymbol}</Text> : null}
+        <Text allowFontScaling={false} className="text-[54px] font-bold leading-[64px] text-zeno-text-primary">{concealMoney(amount || "0", isBalanceHidden)}</Text>
+        {!isBalanceHidden && symbolPosition === "suffix" ? <Text allowFontScaling={false} className="ml-2 mt-5 text-[18px] font-semibold text-zeno-text-primary">{currencySymbol}</Text> : null}
       </View>
       {flow === "mobile" ? <View className="mt-5 rounded-full bg-zeno-green/50 px-5 py-3"><Text className="text-center text-[14px] text-zeno-text-primary">Le montant reçu et les frais seront confirmés par le serveur.</Text></View> : null}
       <View className="mt-auto w-full pt-8">
@@ -747,14 +755,15 @@ function PinStep({ pin, onPinChange, busy, error }: {
       <View className="mt-[72px] items-center"><ZenoCardLogo height={52} variant="dark" /><Text allowFontScaling={false} className="mt-4 font-semibold text-[25px] text-zeno-dark">Enter Your PIN</Text></View>
       <View className="mt-8 flex-row items-center justify-center gap-x-6">{Array.from({ length: PIN_LENGTH }).map((_, index) => <View key={index} className={`h-[9px] w-[9px] rounded-full ${index < pin.length ? "bg-zeno-dark" : "bg-zeno-dark/25"}`} />)}</View>
       {error ? <ErrorText message={error} light /> : null}
-      {busy ? <View className="mt-5"><ActivityIndicator color={colors.zenoDark} /></View> : null}
       <View className="flex-1" />
       <View className="flex-row flex-wrap">{keys.map((key, index) => <Pressable key={`${key}-${index}`} disabled={!key || busy} onPress={() => key === "back" ? onPinChange(pin.slice(0, -1)) : key && pin.length < PIN_LENGTH ? onPinChange(pin + key) : undefined} className="h-[68px] w-1/3 items-center justify-center active:opacity-50">{key ? <Text allowFontScaling={false} className="text-[38px] text-zeno-dark">{key === "back" ? "‹" : key}</Text> : null}</Pressable>)}</View>
+      <PinProcessingOverlay visible={busy} />
     </View>
   );
 }
 
 function TransferResult({ receipt, onDone }: { receipt: TransferReceipt | null; onDone: () => void }) {
+  const isBalanceHidden = useWalletStore((state) => state.isBalanceHidden);
   const completed = receipt?.status === "completed";
   const failed = receipt?.status === "failed";
   return (
@@ -762,7 +771,7 @@ function TransferResult({ receipt, onDone }: { receipt: TransferReceipt | null; 
       <View className="flex-1 items-center justify-center px-2">
         <View className={`h-[92px] w-[92px] items-center justify-center rounded-full ${completed ? "bg-zeno-green" : failed ? "bg-zeno-error/10" : "bg-zeno-warning/15"}`}><Text className="text-[42px] font-bold text-zeno-dark">{completed ? "✓" : failed ? "×" : "…"}</Text></View>
         <Text allowFontScaling={false} className="mt-6 text-center font-bold text-[25px] text-zeno-text-primary">{completed ? "Transfert effectué" : failed ? "Transfert échoué" : "Transfert en attente"}</Text>
-        <Text className="mt-2 text-center text-[15px] text-zeno-text-secondary">{receipt ? formatAmount(receipt.amount, receipt.currency) : ""}</Text>
+        <Text className="mt-2 text-center text-[15px] text-zeno-text-secondary">{receipt ? concealMoney(formatAmount(receipt.amount, receipt.currency), isBalanceHidden) : ""}</Text>
         {receipt ? <View className="mt-7 w-full rounded-[20px] bg-[#F4F4F4] p-5"><View className="flex-row justify-between"><Text className="text-[14px] text-zeno-text-secondary">Bénéficiaire</Text><Text className="font-medium text-zeno-text-primary">{receipt.recipientName}</Text></View><View className="mt-4 flex-row justify-between"><Text className="text-[14px] text-zeno-text-secondary">Référence</Text><Text className="font-medium text-zeno-text-primary">{receipt.reference}</Text></View><View className="mt-4 flex-row justify-between"><Text className="text-[14px] text-zeno-text-secondary">Statut</Text><Text className="font-semibold text-zeno-text-primary">{completed ? "Terminé" : failed ? "Échoué" : "En attente"}</Text></View></View> : null}
       </View>
       <View className="pt-8"><PrimaryButton label="Terminé" onPress={onDone} /></View>
@@ -782,7 +791,7 @@ function PrimaryButton({ label, onPress, disabled = false, busy = false, disable
   const visuallyDisabled = disabled || busy;
   const muted = visuallyDisabled && disabledStyle === "muted";
   return <Pressable onPress={onPress} disabled={visuallyDisabled} accessibilityRole="button" accessibilityState={{ disabled: visuallyDisabled }} className={`h-[62px] flex-row items-center justify-center rounded-full ${muted ? "bg-zeno-green/45" : "bg-zeno-green active:opacity-80"} ${className}`}>
-    {busy ? <ActivityIndicator color={colors.zenoDark} /> : <Text allowFontScaling={false} className={`font-bold text-[19px] ${muted ? "text-zeno-dark/40" : "text-zeno-dark"}`}>{label}</Text>}
+    {busy ? <ZenoLoading variant="blue" size={24} /> : <Text allowFontScaling={false} className={`font-bold text-[19px] ${muted ? "text-zeno-dark/40" : "text-zeno-dark"}`}>{label}</Text>}
   </Pressable>;
 }
 

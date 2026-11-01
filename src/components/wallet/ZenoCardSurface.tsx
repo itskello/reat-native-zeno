@@ -14,8 +14,10 @@ import { ZenoCardSkeleton } from "@/components/ui/Skeleton";
 import { VirtualCardFlowModal, type CardFlowPanel } from "@/components/wallet/VirtualCardFlowModal";
 import { TransactionItem } from "@/components/wallet/TransactionItem";
 import { useTransactionStore } from "@/store/transaction-store";
+import { useWalletStore } from "@/store/wallet-store";
+import { concealMoney } from "@/lib/money-visibility";
 import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import { isCardSandboxEnabled, virtualCardService, type CardBalanceResult, type VirtualCardOverview } from "@/features/virtual-card/card-service";
 import { Pressable, ScrollView, View } from "react-native";
 import { withSpring } from "react-native-reanimated";
@@ -42,6 +44,8 @@ export function ZenoCardSurface({ contentTopGap, onFrozenChange }: ZenoCardSurfa
   const navigateTo = useWalletNav((s) => s.navigateTo);
   const { getToken } = useAuth();
   const transactions = useTransactionStore((state) => state.transactions);
+  const applyWalletBalance = useWalletStore((state) => state.applyConfirmedWalletBalance);
+  const isBalanceHidden = useWalletStore((state) => state.isBalanceHidden);
   const cardTransactions = useMemo(
     () => transactions.filter((item) => item.category === "card" || item.typeId === "card_payment"),
     [transactions]
@@ -146,7 +150,7 @@ export function ZenoCardSurface({ contentTopGap, onFrozenChange }: ZenoCardSurfa
             Card Balance
           </Text>
           <View className="mt-1 flex-row items-start">
-            {currency ? (
+            {currency && !isBalanceHidden ? (
               <Text
                 allowFontScaling={false}
                 className={`mr-1 mt-1 font-bold text-[20px] ${isFrozen ? "text-white/40" : "text-white/70"}`}
@@ -158,7 +162,7 @@ export function ZenoCardSurface({ contentTopGap, onFrozenChange }: ZenoCardSurfa
               allowFontScaling={false}
               className={`font-bold text-[44px] leading-[50px] ${isFrozen ? "text-white/45" : "text-white"}`}
             >
-              {balanceNumber}
+              {concealMoney(balanceNumber, isBalanceHidden)}
             </Text>
           </View>
         </View>
@@ -249,11 +253,14 @@ export function ZenoCardSurface({ contentTopGap, onFrozenChange }: ZenoCardSurfa
         cardBalance={card?.balance ?? "0.00"}
         fundingWalletBalance={card?.fundingWalletBalance}
         onCardStatusChange={(status) => setIsFrozen(status === "frozen")}
-        onBalanceChange={(result: CardBalanceResult) => setCard((current) => current ? {
-          ...current,
-          balance: result.cardBalance,
-          fundingWalletBalance: result.walletBalance.toFixed(2),
-        } : current)}
+        onBalanceChange={(result: CardBalanceResult) => {
+          setCard((current) => current ? {
+            ...current,
+            balance: result.cardBalance,
+            fundingWalletBalance: result.walletBalance.toFixed(2),
+          } : current);
+          applyWalletBalance(result.walletBalance, "USD");
+        }}
       />
     </View>
   );

@@ -1,6 +1,5 @@
 import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
-﻿import { MailIcon } from "@/components/ui/MailIcon";
 import { images } from "@/constants/images";
 import { usePasswordReset } from "@/lib/use-password-reset";
 import { Image } from "expo-image";
@@ -20,7 +19,6 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
   const { sendResetCode, isSubmitting, error, setError } = usePasswordReset();
 
   const isFormValid = useMemo(() => EMAIL_PATTERN.test(email.trim()), [email]);
@@ -35,14 +33,10 @@ export default function ForgotPasswordScreen() {
       return;
     }
 
-    // Reveal the confirmation card, then move on so the user reads it briefly.
-    setSent(true);
-    setTimeout(() => {
-      router.push({
-        pathname: "/verify-reset-code",
-        params: { email: email.trim() },
-      });
-    }, 1500);
+    router.push({
+      pathname: "/verify-reset-code",
+      params: { email: email.trim() },
+    });
   };
 
   return (
@@ -133,27 +127,6 @@ export default function ForgotPasswordScreen() {
             </Text>
           </Pressable>
 
-          {sent ? (
-            <View className="mt-[90px] flex-row items-start rounded-[22px] bg-zeno-blue-light p-5">
-              <View className="h-[54px] w-[54px] items-center justify-center rounded-full bg-zeno-blue">
-                <MailIcon size={28} color="#FFFFFF" />
-              </View>
-              <View className="ml-4 flex-1">
-                <Text
-                  className="font-semibold text-[19px] leading-[26px] text-[#1F2937]"
-                  allowFontScaling={false}
-                >
-                  We&apos;ve sent a reset code to your email.
-                </Text>
-                <Text
-                  className="mt-4 font-medium text-[17px] leading-[24px] text-[#374151]"
-                  allowFontScaling={false}
-                >
-                  Enter it on the next screen to reset your password.
-                </Text>
-              </View>
-            </View>
-          ) : null}
         </ScrollView>
       </View>
     </KeyboardAvoidingView>

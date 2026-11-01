@@ -4,6 +4,7 @@ import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { CountrySheet } from "@/components/ui/CountrySheet";
 import { EyeIcon } from "@/components/ui/EyeIcon";
 import { LockIcon } from "@/components/ui/LockIcon";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { images } from "@/constants/images";
 import {
   SupportedCountry,
@@ -18,6 +19,7 @@ import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -39,12 +41,15 @@ export default function CreateAccountScreen() {
   );
   const setSignUpMethod = useOnboardingStore((state) => state.setSignUpMethod);
 
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmVisible, setIsConfirmVisible] = useState(false);
+  const [isContinuing, setIsContinuing] = useState(false);
   const [isCountrySheetOpen, setIsCountrySheetOpen] = useState(false);
   const {
     signInWith,
@@ -57,15 +62,19 @@ export default function CreateAccountScreen() {
     const digits = phoneNumber.replace(/\D/g, "");
 
     return {
+      firstName: firstName.trim().length > 0,
+      lastName: lastName.trim().length > 0,
       email: EMAIL_PATTERN.test(email.trim()),
       phone: digits.length === phoneCountry.nationalNumberLength,
       password:
         password.length >= 9 && /[a-zA-Z]/.test(password) && /\d/.test(password),
       confirmPassword: confirmPassword.length > 0 && confirmPassword === password,
     };
-  }, [email, phoneNumber, password, confirmPassword, phoneCountry]);
+  }, [firstName, lastName, email, phoneNumber, password, confirmPassword, phoneCountry]);
 
   const isFormValid =
+    validation.firstName &&
+    validation.lastName &&
     validation.email &&
     validation.phone &&
     validation.password &&
@@ -84,14 +93,17 @@ export default function CreateAccountScreen() {
   const phonePlaceholder = phoneCountry.phoneFormat.replace(/#/g, "0");
 
   const handleContinue = async () => {
-    if (!isFormValid) {
+    if (!isFormValid || isSubmitting || isContinuing) {
       return;
     }
 
+    setIsContinuing(true);
     setAccountDetails({ email: email.trim(), phoneNumber });
     setSignUpMethod("form");
 
     const started = await startSignUp({
+      firstName,
+      lastName,
       email: email.trim(),
       phoneNumber,
       password,
@@ -101,7 +113,9 @@ export default function CreateAccountScreen() {
 
     if (started) {
       router.push("/verify-phone");
+      return;
     }
+    setIsContinuing(false);
   };
 
   return (
@@ -143,8 +157,40 @@ export default function CreateAccountScreen() {
             Let&apos;s Get You Started
           </Text>
 
+          <Text className="mt-6 font-medium text-[16px] text-[#252525]" allowFontScaling={false}>
+            First name
+          </Text>
+          <View className="mt-3 h-[64px] justify-center rounded-[22px] bg-white px-6 shadow-card">
+            <TextInput
+              className="font-bold text-[17px] text-[#161616]"
+              placeholder="First name"
+              placeholderTextColor="#B4B4B4"
+              value={firstName}
+              onChangeText={setFirstName}
+              autoCapitalize="words"
+              autoCorrect={false}
+              allowFontScaling={false}
+            />
+          </View>
+
+          <Text className="mt-5 font-medium text-[16px] text-[#252525]" allowFontScaling={false}>
+            Last name
+          </Text>
+          <View className="mt-3 h-[64px] justify-center rounded-[22px] bg-white px-6 shadow-card">
+            <TextInput
+              className="font-bold text-[17px] text-[#161616]"
+              placeholder="Last name"
+              placeholderTextColor="#B4B4B4"
+              value={lastName}
+              onChangeText={setLastName}
+              autoCapitalize="words"
+              autoCorrect={false}
+              allowFontScaling={false}
+            />
+          </View>
+
           <Pressable
-            className="mt-7 h-[64px] flex-row items-center rounded-[22px] bg-white px-6 shadow-card"
+            className="mt-6 h-[64px] flex-row items-center rounded-[22px] bg-white px-6 shadow-card"
             onPress={() => {
               setSignUpMethod("google");
               signInWith("oauth_google");
@@ -335,7 +381,7 @@ export default function CreateAccountScreen() {
             className={`h-[64px] items-center justify-center rounded-full ${
               isFormValid ? "bg-zeno-green" : "bg-[#D3D3D3]"
             }`}
-            disabled={!isFormValid || isSubmitting}
+            disabled={!isFormValid || isSubmitting || isContinuing}
             onPress={handleContinue}
           >
             <Text
@@ -356,6 +402,17 @@ export default function CreateAccountScreen() {
         onSelect={handleSelectPhoneCountry}
         includeTestCountries
       />
+      <Modal
+        visible={isContinuing || isSubmitting || pendingProvider !== null}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => undefined}
+      >
+        <View className="flex-1 items-center justify-center bg-black/50">
+          <ZenoLoading variant="blue" />
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }

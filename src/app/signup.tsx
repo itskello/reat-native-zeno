@@ -4,6 +4,7 @@ import { CountrySheet } from "@/components/ui/CountrySheet";
 import { images } from "@/constants/images";
 import { SupportedCountry } from "@/data/countries";
 import { useOnboardingStore } from "@/store/onboarding-store";
+import { useLanguageStore } from "@/store/language-store";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -12,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
+  const language = useLanguageStore((state) => state.language);
   const [isCountrySheetOpen, setIsCountrySheetOpen] = useState(false);
   const selectedCountry = useOnboardingStore((state) => state.residencyCountry);
   const setResidencyCountry = useOnboardingStore(
@@ -49,7 +51,7 @@ export default function SignUpScreen() {
           className="mt-10 font-bold text-[40px] leading-[46px] text-black"
           allowFontScaling={false}
         >
-          Where Do You{"\n"}Live
+          {language === "fr" ? "Où habitez-vous ?" : <>Where Do You{"\n"}Live</>}
         </Text>
 
         <Text

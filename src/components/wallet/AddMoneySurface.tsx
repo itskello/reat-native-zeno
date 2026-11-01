@@ -1,5 +1,6 @@
 import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
+import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import {Chevron } from "@/components/ui/Chevron";
 import { CloseIcon } from "@/components/ui/CloseIcon";
 import { ZenoIcon } from "@/components/ui/ZenoIcon";
@@ -16,15 +17,16 @@ import { cardDragY } from "@/store/wallet-gesture";
 import { useTransactionStore } from "@/store/transaction-store";
 import { useWalletNav } from "@/store/wallet-nav";
 import { useWalletStore } from "@/store/wallet-store";
+import { concealMoney } from "@/lib/money-visibility";
 import { useLanguageStore } from "@/store/language-store";
 import { colors } from "@/theme/colors";
 import type { CurrencyCode, MobileMoneyProvider, SupportedCountry } from "@/types/content";
-import { useAuth } from "@clerk/clerk-expo";
-import { useUser } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
+import { useUser } from "@clerk/expo";
 import * as Crypto from "expo-crypto";
 import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text as NativeText, View} from "react-native";
+import { Pressable, ScrollView, Text as NativeText, View} from "react-native";
 import { withSpring } from "react-native-reanimated";
 
 type AddMoneySurfaceProps = { contentTopGap: number };
@@ -40,6 +42,7 @@ const ACCOUNT_PHONE_SENDER_ID = "account-phone";
 export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
   const goHome = useWalletNav((state) => state.goHome);
   const wallet = useWalletStore((state) => state.wallet);
+  const isBalanceHidden = useWalletStore((state) => state.isBalanceHidden);
   const addTransaction = useTransactionStore((state) => state.addTransaction);
   const { getToken, userId } = useAuth();
   const { user, isLoaded: isUserLoaded } = useUser();
@@ -261,6 +264,10 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
         category: "received",
         title: deposit.senderName || deposit.phoneNumber,
         description: `Dépôt Mobile Money · ${deposit.providerName}`,
+        localized: {
+          en: { description: `Mobile Money deposit · ${deposit.providerName}` },
+          fr: { description: `Dépôt Mobile Money · ${deposit.providerName}` },
+        },
         amount: deposit.walletAmount,
         totalAmount: deposit.totalAmount,
         fee: deposit.fee,
@@ -298,10 +305,11 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
               amount={amount}
               onAmountChange={handleXofAmountChange}
               amountXof={amountXof}
+              isBalanceHidden={isBalanceHidden}
               walletAmount={walletAmountDisplay}
               onWalletAmountChange={handleWalletAmountChange}
               conversionRateLabel={getDepositPreviewRateLabel(currencyCode, useLanguageStore.getState().language)}
-              walletBalance={wallet ? formatAmount(wallet.balance, wallet.currency) : "—"}
+              walletBalance={wallet ? concealMoney(formatAmount(wallet.balance, wallet.currency), isBalanceHidden) : "—"}
               walletCurrency={currencyCode}
               countryName={country.name}
               country={country}
@@ -350,7 +358,8 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
             <Title title="reviewDeposit" />
             <ReviewStep
               amountXof={amountXof}
-              walletAmount={formatAmount(walletAmountEstimate, currencyCode)}
+              walletAmount={concealMoney(formatAmount(walletAmountEstimate, currencyCode), isBalanceHidden)}
+              isBalanceHidden={isBalanceHidden}
               providerName={provider?.name ?? "—"}
               phoneNumber={`${country.dialCode} ${phoneNumber}`}
               error={error}
@@ -361,7 +370,7 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
         ) : (
           <>
             <Header onBack={close} label="Close deposit receipt" />
-            <ResultStep receipt={receipt} onContinue={close} />
+            <ResultStep receipt={receipt} onContinue={close} isBalanceHidden={isBalanceHidden} />
           </>
         )}
       </View>
@@ -400,6 +409,7 @@ function AmountStep({
   amount,
   onAmountChange,
   amountXof,
+  isBalanceHidden,
   walletAmount,
   onWalletAmountChange,
   conversionRateLabel,
@@ -417,6 +427,7 @@ function AmountStep({
   amount: string;
   onAmountChange: (value: string) => void;
   amountXof: number;
+  isBalanceHidden: boolean;
   walletAmount: string;
   onWalletAmountChange: (value: string) => void;
   conversionRateLabel: string;
@@ -441,6 +452,7 @@ function AmountStep({
       <View className="mt-3 h-[62px] flex-row items-center rounded-[16px] border border-black/10 bg-white px-4">
         <TextInput
           value={amount}
+          secureTextEntry={isBalanceHidden}
           onChangeText={onAmountChange}
           placeholder="0"
           placeholderTextColor="rgba(7,23,6,0.4)"
@@ -497,6 +509,7 @@ function AmountStep({
       <View className="h-[62px] flex-row items-center rounded-[16px] border border-black/10 bg-[#F7F8F7] px-4">
         <TextInput
           value={walletAmount}
+          secureTextEntry={isBalanceHidden}
           onChangeText={onWalletAmountChange}
           placeholder={walletCurrency === "XOF" ? "0" : "0.00"}
           placeholderTextColor="rgba(7,23,6,0.4)"
@@ -589,7 +602,7 @@ function SenderStep({
             <Text allowFontScaling={false} className="mr-3 text-[21px] text-zeno-text-secondary">⌕</Text>
             <TextInput value={search} onChangeText={onSearchChange} placeholder="Search a sender" placeholderTextColor="#969A9A" className="h-full flex-1 text-[16px] text-zeno-text-primary" />
           </View>
-          {loading ? <ActivityIndicator className="mt-8" color={colors.zenoBlue} /> : senders.length ? (
+          {loading ? <ZenoLoading variant="blue" size={20} className="mt-5" /> : senders.length ? (
             <ScrollView className="mt-3 max-h-[390px]" keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               {senders.map((sender) => {
                 const selected = selectedPhone === sender.phoneNumber.replace(/\D/g, "").slice(-10);
@@ -643,6 +656,7 @@ function SenderStep({
 function ReviewStep({
   amountXof,
   walletAmount,
+  isBalanceHidden,
   providerName,
   phoneNumber,
   error,
@@ -651,6 +665,7 @@ function ReviewStep({
 }: {
   amountXof: number;
   walletAmount: string;
+  isBalanceHidden: boolean;
   providerName: string;
   phoneNumber: string;
   error: string | null;
@@ -661,8 +676,8 @@ function ReviewStep({
     <View className="mt-6 flex-1 rounded-t-[28px] bg-white px-5 pb-8 pt-7">
       <Text allowFontScaling={false} className="text-[18px] font-semibold leading-[25px] text-zeno-text-primary">Review your deposit details</Text>
       <View className="mt-6 rounded-[20px] border border-black/5 bg-white px-5 py-4">
-        <SummaryRow label="Deposit amount" value={formatAmount(amountXof, "XOF")} />
-        <SummaryRow label="To ZENO Wallet" value={walletAmount} />
+        <SummaryRow label="Deposit amount" value={concealMoney(formatAmount(amountXof, "XOF"), isBalanceHidden)} />
+        <SummaryRow label="To ZENO Wallet" value={concealMoney(walletAmount, isBalanceHidden)} />
         <SummaryRow label="Via" value={`${providerName} · ${phoneNumber}`} />
       </View>
 
@@ -672,7 +687,7 @@ function ReviewStep({
   );
 }
 
-function ResultStep({ receipt, onContinue }: { receipt: AddMoneyReceipt | null; onContinue: () => void }) {
+function ResultStep({ receipt, onContinue, isBalanceHidden }: { receipt: AddMoneyReceipt | null; onContinue: () => void; isBalanceHidden: boolean }) {
   const completed = receipt?.status === "completed";
   const pending = receipt?.status === "pending";
   const title = completed ? "Deposit successful" : pending ? "Deposit submitted" : "Deposit failed";
@@ -695,7 +710,7 @@ function ResultStep({ receipt, onContinue }: { receipt: AddMoneyReceipt | null; 
         <View className="mt-auto rounded-t-[28px] bg-white px-5 pb-8 pt-7">
           <Text allowFontScaling={false} className="text-[22px] font-bold text-zeno-text-primary">Transaction receipt</Text>
           <View className="mt-5 rounded-[18px] bg-[#F7F8F7] px-4 py-3">
-            <SummaryRow label="Amount deposited" value={formatAmount(receipt.amountXof, "XOF")} />
+            <SummaryRow label="Amount deposited" value={concealMoney(formatAmount(receipt.amountXof, "XOF"), isBalanceHidden)} />
             <SummaryRow label="Via" value={`${receipt.providerName} · ${receipt.phoneNumber}`} />
             <SummaryRow label="Reference" value={receipt.reference} />
             <SummaryRow label="Status" value={receipt.status} />
@@ -740,7 +755,7 @@ function PrimaryButton({ label, onPress, disabled = false, busy = false, tone = 
   const inactive = disabled || busy;
   return (
     <Pressable onPress={onPress} disabled={inactive} accessibilityRole="button" accessibilityState={{ disabled: inactive }} className={`h-[62px] items-center justify-center rounded-full ${inactive ? "bg-black/15" : tone === "lime" ? "bg-zeno-green active:opacity-90" : "bg-zeno-intro active:opacity-90"}`}>
-      {busy ? <ActivityIndicator color={colors.zenoDark} /> : <Text allowFontScaling={false} className={`text-[19px] font-bold ${inactive ? "text-black/30" : tone === "lime" ? "text-zeno-dark" : "text-white"}`}>{label}</Text>}
+      {busy ? <ZenoLoading variant="blue" size={24} /> : <Text allowFontScaling={false} className={`text-[19px] font-bold ${inactive ? "text-black/30" : tone === "lime" ? "text-zeno-dark" : "text-white"}`}>{label}</Text>}
     </Pressable>
   );
 }

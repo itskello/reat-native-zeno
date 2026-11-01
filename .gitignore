@@ -40,7 +40,11 @@ yarn-error.*
 # .claude/skills/ holds absolute symlinks into .agents/skills — machine-specific.
 # .agents/AGENTS.md duplicates AGENTS.md, which Claude already reads via CLAUDE.md.
 .claude/skills/
+.claude/settings.local.json
 .agents/AGENTS.md
+
+# Local Google OAuth client downloads contain client secrets and must never be committed.
+assets/client_secret_*.json
 
 # design references and prompt material kept locally
 prompt1/ANIMIX/
