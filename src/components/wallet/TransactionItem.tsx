@@ -1,9 +1,10 @@
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
+import { CardIcon } from "@/components/ui/ProfileIcons";
 import { formatAmount } from "@/data/currencies";
-import { getTransactionType } from "@/data/transaction-types";
 import type { CurrencyCode } from "@/types/content";
 import type { Transaction, TransactionStatus } from "@/types/wallet";
+import { colors } from "@/theme/colors";
 import { useWalletStore } from "@/store/wallet-store";
 import { useLanguageStore } from "@/store/language-store";
 import { concealMoney } from "@/lib/money-visibility";
@@ -32,11 +33,22 @@ export const TransactionItem = memo(function TransactionItem({
   currency,
   onPress,
 }: TransactionItemProps) {
-  const type = getTransactionType(transaction.typeId);
   const isBalanceHidden = useWalletStore((state) => state.isBalanceHidden);
   const language = useLanguageStore((state) => state.language);
   const localized = transaction.localized?.[language];
   const isIncoming = transaction.direction === "in";
+  const isCard =
+    transaction.category === "card" || transaction.typeId === "card_payment";
+  const iconBg = isCard
+    ? "bg-zeno-sky"
+    : isIncoming
+      ? "bg-emerald-50"
+      : "bg-zeno-blue-light";
+  const iconColor = isCard
+    ? colors.zenoDark
+    : isIncoming
+      ? colors.success
+      : colors.zenoBlue;
   const sign = isIncoming ? "+" : "-";
 
   return (
@@ -45,13 +57,17 @@ export const TransactionItem = memo(function TransactionItem({
       onPress={onPress}
       style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
     >
-      {/* Type icon in a tinted circle. */}
-      <View className="h-[44px] w-[44px] items-center justify-center rounded-full bg-zeno-blue-light">
-        <ArrowIcon
-          direction={isIncoming ? "down-left" : "up-right"}
-          color={type.color}
-          size={20}
-        />
+      {/* Match the icon and color used in the full transaction history. */}
+      <View className={`h-[44px] w-[44px] items-center justify-center rounded-full ${iconBg}`}>
+        {isCard ? (
+          <CardIcon color={iconColor} size={22} />
+        ) : (
+          <ArrowIcon
+            direction={isIncoming ? "down-left" : "up-right"}
+            color={iconColor}
+            size={20}
+          />
+        )}
       </View>
 
       <View className="ml-3 flex-1">

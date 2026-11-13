@@ -5,10 +5,10 @@ import type {
 } from "@/types/content";
 
 /**
- * Mobile Money providers for the initial markets.
+ * Mobile Money provider choices for the ten proposed launch markets.
  *
- * - Benin: MTN Mobile Money, Moov Money, Celtiis
- * - Côte d'Ivoire: Orange Money, MTN Mobile Money, Moov Money
+ * Provider activation is still confirmed against each merchant's server-side
+ * pawaPay active configuration and PayDunya account credentials.
  *
  * `logoKey` points into `images.providers`. Orange has no bundled brand mark
  * yet, so it is omitted rather than pointing at a missing asset.
@@ -21,33 +21,50 @@ export const mobileMoneyProviders: MobileMoneyProvider[] = [
     id: "mtn",
     name: "MTN Money",
     logoKey: "mtn",
-    availableIn: ["benin", "cote-divoire"],
+    availableIn: ["benin", "cote-divoire", "cameroon", "ghana", "nigeria"],
+    payoutAvailableIn: ["benin", "cote-divoire", "cameroon", "ghana", "nigeria"],
   },
   {
     id: "moov",
     name: "Moov Money",
     logoKey: "moov",
-    availableIn: ["benin", "cote-divoire"],
+    availableIn: ["benin", "cote-divoire", "burkina-faso", "mali", "togo"],
+    payoutAvailableIn: ["benin", "cote-divoire", "burkina-faso", "mali", "togo"],
   },
   {
     id: "celtiis",
     name: "Celtiis",
     logoKey: "celtiis",
     availableIn: ["benin"],
+    payoutAvailableIn: ["benin"],
   },
   {
     id: "orange",
     name: "Orange Money",
-    availableIn: ["cote-divoire"],
+    availableIn: ["cote-divoire", "senegal", "burkina-faso", "mali"],
+    payoutAvailableIn: ["cote-divoire", "senegal", "burkina-faso", "mali"],
   },
+  { id: "wave", name: "Wave", availableIn: ["cote-divoire", "senegal", "mali"], payoutAvailableIn: ["cote-divoire", "senegal"] },
+  { id: "free", name: "Free Money", availableIn: ["senegal"], payoutAvailableIn: ["senegal"] },
+  { id: "expresso", name: "Expresso", availableIn: ["senegal"], payoutAvailableIn: ["senegal"] },
+  { id: "mixx", name: "Mixx", availableIn: ["senegal"], payoutAvailableIn: ["senegal"] },
+  { id: "djamo", name: "Djamo", availableIn: ["cote-divoire", "senegal"], payoutAvailableIn: ["cote-divoire", "senegal"] },
+  { id: "tmoney", name: "T-Money", availableIn: ["togo"], payoutAvailableIn: ["togo"] },
+  { id: "telecel", name: "Telecel Cash", availableIn: ["ghana"], payoutAvailableIn: ["ghana"] },
+  { id: "airteltigo", name: "AirtelTigo", availableIn: ["ghana"], payoutAvailableIn: ["ghana"] },
+  { id: "airtel", name: "Airtel Money", availableIn: ["nigeria", "democratic-republic-of-congo"], payoutAvailableIn: ["nigeria", "democratic-republic-of-congo"] },
+  { id: "vodacom-mpesa", name: "Vodacom M-Pesa", availableIn: ["democratic-republic-of-congo"], payoutAvailableIn: ["democratic-republic-of-congo"] },
 ];
 
 /** Providers available in a given country, in display order. */
 export function getProvidersForCountry(
-  countryId: CountryId
+  countryId: CountryId,
+  operation: "deposit" | "withdrawal" = "deposit",
 ): MobileMoneyProvider[] {
   return mobileMoneyProviders.filter((provider) =>
-    provider.availableIn.includes(countryId)
+    operation === "deposit"
+      ? provider.availableIn.includes(countryId)
+      : provider.payoutAvailableIn?.includes(countryId) === true
   );
 }
 

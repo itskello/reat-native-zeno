@@ -1,7 +1,7 @@
 import { LocalizedTextInput as TextInput } from "@/components/ui/LocalizedText";
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
 import { Chevron } from "@/components/ui/Chevron";
-import { SupportedCountry, supportedCountries } from "@/data/countries";
+import { CountryId, SupportedCountry, supportedCountries } from "@/data/countries";
 import { Image } from "expo-image";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
@@ -16,6 +16,8 @@ type CountrySheetProps = {
    * Only enable it on the phone number picker, never on residency.
    */
   includeTestCountries?: boolean;
+  /** Optional launch/onboarding allowlist, used where OTP delivery is configured. */
+  availableCountryIds?: readonly CountryId[];
 };
 
 export function CountrySheet({
@@ -23,15 +25,19 @@ export function CountrySheet({
   onClose,
   onSelect,
   includeTestCountries = false,
+  availableCountryIds,
 }: CountrySheetProps) {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredCountries = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    const countries = includeTestCountries
+    const visibleCountries = includeTestCountries
       ? supportedCountries
       : supportedCountries.filter((country) => !country.isTestOnly);
+    const countries = availableCountryIds
+      ? visibleCountries.filter((country) => availableCountryIds.includes(country.id))
+      : visibleCountries;
 
     if (!normalizedQuery) {
       return countries;
@@ -40,7 +46,7 @@ export function CountrySheet({
     return countries.filter((country) =>
       `${country.name} ${country.isoCode}`.toLowerCase().includes(normalizedQuery)
     );
-  }, [searchQuery, includeTestCountries]);
+  }, [searchQuery, includeTestCountries, availableCountryIds]);
 
   const close = () => {
     setSearchQuery("");

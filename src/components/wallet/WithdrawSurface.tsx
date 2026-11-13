@@ -20,11 +20,11 @@ import { useSecurityStore } from "@/store/security-store";
 import { withdrawalService, type WithdrawalReceipt } from "@/features/withdrawals/withdrawal-service";
 import { colors } from "@/theme/colors";
 import { supportedCountries } from "@/data/countries";
-import type { CountryId, MobileMoneyProvider, SupportedCountry } from "@/types/content";
+import type { CountryId, CurrencyCode, MobileMoneyProvider, SupportedCountry } from "@/types/content";
 import * as Crypto from "expo-crypto";
 import { useAuth } from "@clerk/expo";
 import { Image } from "expo-image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text as NativeText, View } from "react-native";
 import { withSpring } from "react-native-reanimated";
 
@@ -37,7 +37,7 @@ type WithdrawStep = "amount" | "recipient" | "confirm" | "pin" | "success";
 
 /** Only show countries that currently have a configured withdrawal operator. */
 const payoutCountries = supportedCountries.filter(
-  (country) => getProvidersForCountry(country.id).length > 0,
+  (country) => getProvidersForCountry(country.id, "withdrawal").length > 0,
 );
 const DEFAULT_PAYOUT_COUNTRY: CountryId = "benin";
 
@@ -62,13 +62,13 @@ export function WithdrawSurface({ contentTopGap }: WithdrawSurfaceProps) {
   const goHome = useWalletNav((s) => s.goHome);
   const wallet = useWalletStore((s) => s.wallet);
   const isBalanceHidden = useWalletStore((s) => s.isBalanceHidden);
-  const addTransaction = useTransactionStore((s) => s.addTransaction);
+  const upsertTransaction = useTransactionStore((s) => s.upsertTransaction);
   const verifyPin = useSecurityStore((s) => s.verifyPin);
   const hasPin = useSecurityStore((s) => s.hasPin);
   const { getToken, userId } = useAuth();
 
   const [payoutCountryId, setPayoutCountryId] = useState<CountryId>(DEFAULT_PAYOUT_COUNTRY);
-  const providers = getProvidersForCountry(payoutCountryId);
+  const providers = getProvidersForCountry(payoutCountryId, "withdrawal");
   const [step, setStep] = useState<WithdrawStep>("amount");
   const [amount, setAmount] = useState("");
   const [providerId, setProviderId] = useState(providers[0]?.id);
@@ -84,14 +84,19 @@ export function WithdrawSurface({ contentTopGap }: WithdrawSurfaceProps) {
 
   const provider = providers.find((p) => p.id === providerId);
   const payoutCountry = supportedCountries.find((item) => item.id === payoutCountryId);
+  useEffect(() => {
+    const country = supportedCountries.find((item) => item.id === payoutCountryId);
+    if (country) void useWalletStore.getState().loadWallet(country.defaultCurrency, getToken);
+  }, [payoutCountryId, getToken]);
   const currency = wallet ? getCurrency(wallet.currency) : null;
   const amountValue = Number(amount.replace(",", ".")) || 0;
 
-  const canWithdraw = amountValue > 0 && !!wallet && amountValue <= wallet.balance && provider !== undefined;
+  const canWithdraw = amountValue > 0 && !!wallet && wallet.currency === payoutCountry?.defaultCurrency && amountValue <= wallet.balance && provider !== undefined;
   const canContinue = !!payoutCountry && phone.replace(/\D/g, "").length === payoutCountry.nationalNumberLength && name.trim().length > 1;
 
   const close = () => {
     cardDragY.value = withSpring(0, springs.liquid);
+    void useWalletStore.getState().loadWallet("USD", getToken);
     goHome();
   };
 
@@ -100,6 +105,10 @@ export function WithdrawSurface({ contentTopGap }: WithdrawSurfaceProps) {
 
   const submit = async (value = pin) => {
     if (busy || value.length !== 6 || !userId || !wallet || !provider) return;
+    if (wallet.currency !== payoutCountry?.defaultCurrency) {
+      setError(`Sélectionne le portefeuille local ${payoutCountry?.defaultCurrency ?? "du pays"} avant de continuer.`);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -127,7 +136,7 @@ export function WithdrawSurface({ contentTopGap }: WithdrawSurfaceProps) {
         providerId: provider.id,
         phoneNumber: `${country.dialCode}${phone.replace(/\D/g, "")}`,
         recipientName: name.trim(),
-        amount: amountValue,
+        amount: Math.round(amountValue * (wallet.currency === "XOF" || wallet.currency === "XAF" ? 1 : 100)),
         currency: wallet.currency,
         pin: value,
         idempotencyKey,
@@ -138,9 +147,20 @@ export function WithdrawSurface({ contentTopGap }: WithdrawSurfaceProps) {
         return;
       }
 
-      const withdrawal = result.data.withdrawal;
+      let withdrawal = result.data.withdrawal;
+      if (withdrawal.status === "pending") {
+        for (let attempt = 0; attempt < 30; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          const currentToken = await getToken();
+          if (!currentToken) break;
+          const status = await withdrawalService.getStatus(currentToken, withdrawal.reference);
+          if (!status.ok) continue;
+          withdrawal = status.data.withdrawal;
+          if (withdrawal.status !== "pending") break;
+        }
+      }
       setReceipt(withdrawal);
-      addTransaction({
+      upsertTransaction({
         id: withdrawal.id,
         typeId: "withdrawal",
         category: "sent",
@@ -157,6 +177,9 @@ export function WithdrawSurface({ contentTopGap }: WithdrawSurfaceProps) {
         reference: withdrawal.reference,
         paymentMethod: withdrawal.paymentMethod,
       });
+      // Pending payouts already reserve funds in the ledger, so refresh the
+      // visible balance even while PayDunya is still processing the request.
+      await useWalletStore.getState().loadWallet(wallet.currency, getToken);
       setPin("");
       setStep("success");
     } catch {
@@ -171,10 +194,10 @@ export function WithdrawSurface({ contentTopGap }: WithdrawSurfaceProps) {
     <AmountPanel
       amount={amount}
       onAmountChange={(value) => {
-        // XOF has no fractional units; USD/EUR amounts allow two decimals.
+        // XOF and XAF have no fractional units; other local currencies allow two decimals.
         const normalized = value.replace(/,/g, ".").replace(/[^\d.]/g, "");
         const [whole, ...fractionParts] = normalized.split(".");
-        const fraction = fractionParts.join("").slice(0, wallet?.currency === "XOF" ? 0 : 2);
+        const fraction = fractionParts.join("").slice(0, wallet?.currency === "XOF" || wallet?.currency === "XAF" ? 0 : 2);
         setAmount(fractionParts.length ? `${whole}.${fraction}` : whole);
       }}
       amountValue={amountValue}
@@ -185,15 +208,17 @@ export function WithdrawSurface({ contentTopGap }: WithdrawSurfaceProps) {
       countryMenuOpen={countryMenuOpen}
       onToggleCountry={() => setCountryMenuOpen((open) => !open)}
       onSelectCountry={(id) => {
-        const nextProviders = getProvidersForCountry(id);
+        const nextProviders = getProvidersForCountry(id, "withdrawal");
         setPayoutCountryId(id);
         setProviderId(nextProviders[0]?.id);
+        const nextCountry = supportedCountries.find((item) => item.id === id);
+        if (nextCountry) void useWalletStore.getState().loadWallet(nextCountry.defaultCurrency, getToken);
         setProvidersOpen(true);
         setCountryMenuOpen(false);
         setPhone("");
       }}
       balanceLabel={
-        wallet ? concealMoney(formatAmount(wallet.balance, wallet.currency), isBalanceHidden) : "—"
+        wallet?.currency === payoutCountry?.defaultCurrency ? concealMoney(formatAmount(wallet.balance, wallet.currency), isBalanceHidden) : "—"
       }
       providers={providers}
       providerId={providerId}
@@ -247,7 +272,7 @@ export function WithdrawSurface({ contentTopGap }: WithdrawSurfaceProps) {
             </View>
 
             <ConfirmSheet
-              amountLabel={concealMoney(`${formatValue(amountValue)} ${currency?.symbol ?? ""}`, isBalanceHidden)}
+              amountLabel={concealMoney(`${formatValue(amountValue, wallet?.currency)} ${currency?.symbol ?? ""}`, isBalanceHidden)}
               feeLabel="À confirmer par le serveur"
               totalLabel="À confirmer par le serveur"
               error={error}
@@ -397,7 +422,7 @@ function AmountPanel({
 }) {
   const selected = providers.find((p) => p.id === providerId);
   const rest = providers.filter((p) => p.id !== providerId);
-  const receivedValue = currencyCode === "XOF" ? formatValue(amountValue) : amountValue > 0 ? "—" : "0.0";
+  const receivedValue = formatValue(amountValue, currencyCode as CurrencyCode);
 
   return (
     <View className="mt-6 flex-1 rounded-t-[26px] bg-white px-4 pt-7">
@@ -452,7 +477,7 @@ function AmountPanel({
         <View className="h-px flex-1 bg-black/10" />
         <View className="mx-2 rounded-full bg-zeno-blue px-3 py-1.5">
           <Text allowFontScaling={false} className="text-[12px] text-white">
-            {currencyCode === "XOF" ? "1 XOF = 1 XOF" : `1 ${currencyCode} = — XOF`}
+            {`1 ${currencyCode} = 1 ${currencyCode}`}
           </Text>
         </View>
         <View className="h-px flex-1 bg-black/10" />
@@ -1009,8 +1034,8 @@ function CheckGlyph({ size, color }: { size: number; color: string }) {
   );
 }
 
-/** Display helper for the two amount fields — the design shows one decimal. */
-function formatValue(value: number) {
-  return value.toFixed(1);
+/** The preview stays in the selected country's local currency. */
+function formatValue(value: number, currencyCode: CurrencyCode = "XOF") {
+  return value.toFixed(getCurrency(currencyCode).decimalDigits);
 }
 

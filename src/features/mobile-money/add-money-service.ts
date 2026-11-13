@@ -1,8 +1,8 @@
 import { getAuthenticated, postAuthenticated } from "@/lib/api";
 import * as SecureStore from "expo-secure-store";
-import type { CurrencyCode } from "@/types/content";
+import type { CountryId, CurrencyCode } from "@/types/content";
 
-export type AddMoneyCountry = "benin" | "cote-divoire";
+export type AddMoneyCountry = CountryId;
 
 export type AddMoneySender = {
   id: string;
@@ -28,6 +28,7 @@ export type AddMoneyReceipt = {
   phoneNumber: string;
   countryId: AddMoneyCountry;
   providerName: string;
+  checkoutUrl?: string;
 };
 
 export type CreateAddMoneyRequest = {
@@ -36,6 +37,7 @@ export type CreateAddMoneyRequest = {
   phoneNumber: string;
   senderName?: string;
   amountXof: number;
+  amountMinor?: number;
   walletCurrency: CurrencyCode;
   idempotencyKey: string;
 };
@@ -96,7 +98,7 @@ export const addMoneyService = {
     if (!result.ok) return result;
 
     const deposit = result.data.deposit;
-    const supportedCurrency = ["XOF", "USD", "EUR"].includes(deposit?.walletCurrency);
+    const supportedCurrency = ["XOF", "USD", "EUR", "GHS", "NGN", "XAF", "CDF"].includes(deposit?.walletCurrency);
     const supportedStatus = ["pending", "completed", "failed"].includes(deposit?.status);
     if (
       !deposit?.id ||
@@ -123,6 +125,14 @@ export const addMoneyService = {
     }
 
     return result;
+  },
+
+  async getStatus(sessionToken: string, reference: string, signal?: AbortSignal) {
+    return getAuthenticated<{ deposit: AddMoneyReceipt }>(
+      `/api/deposits/mobile-money?reference=${encodeURIComponent(reference)}`,
+      sessionToken,
+      signal,
+    );
   },
 };
 
@@ -166,7 +176,7 @@ function isSavedSender(value: unknown): value is AddMoneySender {
   if (!value || typeof value !== "object") return false;
   const sender = value as Partial<AddMoneySender>;
   return typeof sender.id === "string" &&
-    (sender.countryId === "benin" || sender.countryId === "cote-divoire") &&
+    typeof sender.countryId === "string" &&
     typeof sender.phoneNumber === "string" &&
     typeof sender.providerId === "string" &&
     typeof sender.providerName === "string";

@@ -1,6 +1,5 @@
 import { showLocalizedAlert } from "@/components/ui/LocalizedText";
 import { LocalizedText as Text } from "@/components/ui/LocalizedText";
-import { ZenoLoading } from "@/components/ui/ZenoLoading";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
 import {
   CardIcon,
@@ -386,8 +385,6 @@ function TransactionDetailModal({
   const feeAmount = transaction.fee ?? 0;
   const totalAmount = transaction.totalAmount ?? (transaction.amount + feeAmount);
 
-  const [showStatementToast, setShowStatementToast] = useState(false);
-  const [isLoadingStatement, setIsLoadingStatement] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleCopyId = () => {
@@ -397,15 +394,14 @@ function TransactionDetailModal({
   };
 
   const handleStatement = () => {
-    if (isLoadingStatement) return;
-    setIsLoadingStatement(true);
-    setTimeout(() => {
-      setIsLoadingStatement(false);
-      setShowStatementToast(true);
-      setTimeout(() => {
-        setShowStatementToast(false);
-      }, 3800);
-    }, 2500);
+    onClose();
+    router.push({
+      pathname: "/settings/support-chat",
+      params: {
+        prefillMessage: "Bonjour, je souhaite recevoir mon relevé de transactions. Merci de me l’envoyer.",
+        requestAgent: "true",
+      },
+    });
   };
 
   const handleReportProblem = () => {
@@ -449,32 +445,6 @@ function TransactionDetailModal({
           backgroundColor: colors.zenoBackground,
         }}
       >
-        {/* Floating Notification Toast Popup */}
-        {showStatementToast && (
-          <View
-            className="absolute left-5 right-5 z-50 rounded-[22px] bg-[#071706] p-4 shadow-strong flex-row items-center"
-            style={{ top: insets.top + 10 }}
-          >
-            <View className="h-10 w-10 items-center justify-center rounded-full bg-zeno-green/20 mr-3">
-              <DownloadIcon size={20} color="#C7FF4A" />
-            </View>
-            <View className="flex-1 pr-2">
-              <Text
-                allowFontScaling={false}
-                className="text-[15px] font-bold text-white"
-              >
-                Demande en cours de traitement
-              </Text>
-              <Text
-                allowFontScaling={false}
-                className="mt-0.5 text-[13px] font-medium text-gray-300 leading-4"
-              >
-                Vous recevrez un e-mail avec votre relevé d'ici 2 à 5 minutes.
-              </Text>
-            </View>
-          </View>
-        )}
-
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40 }}
@@ -735,22 +705,17 @@ function TransactionDetailModal({
           {/* Action Button 1: Demander un relevé */}
           <Pressable
             onPress={handleStatement}
-            disabled={isLoadingStatement}
             className="mb-3 flex-row items-center justify-between rounded-[24px] bg-white px-5 py-4 shadow-low border border-gray-100/60"
-            style={({ pressed }) => ({ opacity: pressed || isLoadingStatement ? 0.75 : 1 })}
+            style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}
           >
             <View className="h-10 w-10 items-center justify-center rounded-full bg-gray-100">
-              {isLoadingStatement ? (
-                <ZenoLoading variant="blue" size={24} />
-              ) : (
-                <DownloadIcon size={20} color="#071706" />
-              )}
+              <DownloadIcon size={20} color="#071706" />
             </View>
             <Text
               allowFontScaling={false}
               className="ml-3.5 flex-1 text-[16px] font-bold text-zeno-text-primary"
             >
-              {isLoadingStatement ? "Chargement en cours..." : "Demander un relevé"}
+              Demander un relevé
             </Text>
             <ChevronRightIcon size={20} color="#071706" />
           </Pressable>

@@ -62,6 +62,7 @@ type TransactionState = {
   isLoading: boolean;
   loadTransactions: (getToken?: () => Promise<string | null>) => Promise<void>;
   addTransaction: (transaction: Transaction) => void;
+  upsertTransaction: (transaction: Transaction) => void;
 };
 
 export const useTransactionStore = create<TransactionState>((set) => ({
@@ -145,6 +146,10 @@ export const useTransactionStore = create<TransactionState>((set) => ({
         ? state
         : { transactions: [transaction, ...state.transactions] }
     ),
+  upsertTransaction: (transaction) =>
+    set((state) => ({
+      transactions: [transaction, ...state.transactions.filter((item) => item.id !== transaction.id)],
+    })),
 }));
 
 function transactionTitle(type: TransactionTypeId, language: "en" | "fr") {

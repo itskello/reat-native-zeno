@@ -24,6 +24,7 @@ import type { CurrencyCode, MobileMoneyProvider, SupportedCountry } from "@/type
 import { useAuth } from "@clerk/expo";
 import { useUser } from "@clerk/expo";
 import * as Crypto from "expo-crypto";
+import * as WebBrowser from "expo-web-browser";
 import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, Text as NativeText, View} from "react-native";
@@ -33,9 +34,7 @@ type AddMoneySurfaceProps = { contentTopGap: number };
 type AddMoneyStep = "amount" | "sender" | "review" | "result";
 type SenderTab = "saved" | "new";
 
-const ADD_MONEY_COUNTRIES = supportedCountries.filter(
-  (country) => country.id === "benin" || country.id === "cote-divoire"
-);
+const ADD_MONEY_COUNTRIES = supportedCountries.filter((country) => !country.isTestOnly);
 const ACCOUNT_PHONE_SENDER_ID = "account-phone";
 
 /** Add Money is one Wallet room; each step replaces the content in the island block. */
@@ -43,7 +42,7 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
   const goHome = useWalletNav((state) => state.goHome);
   const wallet = useWalletStore((state) => state.wallet);
   const isBalanceHidden = useWalletStore((state) => state.isBalanceHidden);
-  const addTransaction = useTransactionStore((state) => state.addTransaction);
+  const upsertTransaction = useTransactionStore((state) => state.upsertTransaction);
   const { getToken, userId } = useAuth();
   const { user, isLoaded: isUserLoaded } = useUser();
   const appliedAccountCountry = useRef(false);
@@ -68,6 +67,7 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
   const [savingSender, setSavingSender] = useState(false);
   const [receipt, setReceipt] = useState<AddMoneyReceipt | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState(() => Crypto.randomUUID());
+  const country = supportedCountries.find((item) => item.id === countryId) ?? ADD_MONEY_COUNTRIES[0];
 
   useEffect(() => {
     if (!isUserLoaded || appliedAccountCountry.current) return;
@@ -88,10 +88,14 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
     setProviderId(getProvidersForCountry(preferredCountry)[0]?.id ?? null);
   }, [isUserLoaded, user]);
 
-  const currencyCode = wallet?.currency ?? "XOF";
-  const country = supportedCountries.find((item) => item.id === countryId) ?? ADD_MONEY_COUNTRIES[0];
+  useEffect(() => {
+    void useWalletStore.getState().loadWallet(country.defaultCurrency, getToken);
+  }, [countryId, country.defaultCurrency, getToken]);
+
+  const currencyCode = country.defaultCurrency;
   const providers = getProvidersForCountry(countryId);
   const amountXof = Number(amount.replace(",", ".")) || 0;
+  const amountMinor = Math.round(amountXof * (currencyCode === "XOF" || currencyCode === "XAF" ? 1 : 100));
   const walletAmountEstimate = estimateDepositWalletAmount(amountXof, currencyCode);
   const walletAmountDisplay = lastEditedAmount === "wallet" && walletAmountInput !== ""
     ? walletAmountInput
@@ -108,17 +112,24 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
     setCountryId(nextCountry);
     setPhoneNumber("");
     setProviderId(getProvidersForCountry(nextCountry)[0]?.id ?? null);
+    void useWalletStore.getState().loadWallet(supportedCountries.find((item) => item.id === nextCountry)?.defaultCurrency ?? "XOF", getToken);
     setCountryMenuOpen(false);
     setProviderMenuOpen(false);
   };
 
   const close = () => {
     cardDragY.value = withSpring(0, springs.liquid);
+    void useWalletStore.getState().loadWallet("USD", getToken);
     goHome();
   };
 
   const handleXofAmountChange = (value: string) => {
-    const nextAmount = value.replace(/\D/g, "").slice(0, 12);
+    const fractionDigits = currencyCode === "XOF" || currencyCode === "XAF" ? 0 : 2;
+    const cleaned = value.replace(/,/g, ".").replace(/[^\d.]/g, "");
+    const [whole = "", ...fractions] = cleaned.split(".");
+    const nextAmount = fractionDigits === 0
+      ? whole.slice(0, 12)
+      : `${whole.slice(0, 12)}${fractions.length ? `.${fractions.join("").slice(0, fractionDigits)}` : ""}`;
     const nextAmountXof = Number(nextAmount) || 0;
     setAmount(nextAmount);
     setWalletAmountInput(formatWalletAmountInput(
@@ -131,7 +142,7 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
   const handleWalletAmountChange = (value: string) => {
     const normalized = value.replace(/,/g, ".").replace(/[^\d.]/g, "");
     const [whole = "", ...fractionParts] = normalized.split(".");
-    const nextAmount = currencyCode === "XOF"
+    const nextAmount = currencyCode === "XOF" || currencyCode === "XAF"
       ? whole.slice(0, 12)
       : `${whole.slice(0, 12)}${fractionParts.length ? `.${fractionParts.join("").slice(0, 2)}` : ""}`;
     const parsedAmount = Number(nextAmount) || 0;
@@ -233,11 +244,15 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
 
   const submitDeposit = async () => {
     if (busy || !userId || !provider || !canContinueSender || amountXof <= 0) return;
+    if (currencyCode !== country.defaultCurrency || wallet?.currency !== country.defaultCurrency) {
+      setError(`Sélectionne le portefeuille local ${country.defaultCurrency} avant de continuer.`);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      // The provider's Mobile Money authorization happens after this request.
-      // The backend calculates conversion/fees and records the ledger entry.
+      // The backend credits the matching local-currency ledger only after
+      // confirming the provider's final transaction status.
       const token = await getToken();
       if (!token) {
         setError("Ta session a expiré. Reconnecte-toi puis réessaie.");
@@ -248,6 +263,7 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
         providerId: provider.id,
         phoneNumber: `${country.dialCode}${phoneNumber.replace(/\D/g, "")}`,
         amountXof,
+        amountMinor,
         walletCurrency: currencyCode,
         idempotencyKey,
       });
@@ -256,9 +272,31 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
         return;
       }
 
-      const deposit = result.data.deposit;
+      let deposit = result.data.deposit;
+      if (deposit.checkoutUrl) {
+        const checkout = new URL(deposit.checkoutUrl);
+        if (checkout.protocol !== "https:" || checkout.hostname !== "app.paydunya.com" || !checkout.pathname.startsWith("/sandbox-checkout/invoice/")) {
+          throw new Error("Le lien sandbox PayDunya reçu n’est pas valide.");
+        }
+        try {
+          await WebBrowser.openAuthSessionAsync(deposit.checkoutUrl, "zeno://");
+        } catch {
+          // The server-side status remains authoritative if the browser closes unexpectedly.
+        }
+      } else {
+        for (let attempt = 0; attempt < 30; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          const currentToken = await getToken();
+          if (!currentToken) break;
+          const status = await addMoneyService.getStatus(currentToken, deposit.reference);
+          if (!status.ok) continue;
+          deposit = status.data.deposit;
+          if (deposit.status !== "pending") break;
+        }
+      }
+
       setReceipt(deposit);
-      addTransaction({
+      upsertTransaction({
         id: deposit.id,
         typeId: "deposit",
         category: "received",
@@ -281,6 +319,9 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
         reference: deposit.reference,
         paymentMethod: `Mobile Money (${deposit.providerName})`,
       });
+      if (deposit.status === "completed") {
+        await useWalletStore.getState().loadWallet(currencyCode, getToken);
+      }
       setStep("result");
     } catch {
       setError("Le dépôt n’a pas pu être confirmé. Vérifie l’historique avant de réessayer.");
@@ -309,7 +350,7 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
               walletAmount={walletAmountDisplay}
               onWalletAmountChange={handleWalletAmountChange}
               conversionRateLabel={getDepositPreviewRateLabel(currencyCode, useLanguageStore.getState().language)}
-              walletBalance={wallet ? concealMoney(formatAmount(wallet.balance, wallet.currency), isBalanceHidden) : "—"}
+              walletBalance={wallet?.currency === currencyCode ? concealMoney(formatAmount(wallet.balance, wallet.currency), isBalanceHidden) : "—"}
               walletCurrency={currencyCode}
               countryName={country.name}
               country={country}
@@ -317,7 +358,7 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
               countryMenuOpen={countryMenuOpen}
               onToggleCountry={() => setCountryMenuOpen((open) => !open)}
               onSelectCountry={selectCountry}
-              canContinue={canContinueAmount}
+              canContinue={canContinueAmount && wallet?.currency === currencyCode}
               onContinue={openSenders}
             />
           </>
@@ -358,6 +399,7 @@ export function AddMoneySurface({ contentTopGap }: AddMoneySurfaceProps) {
             <Title title="reviewDeposit" />
             <ReviewStep
               amountXof={amountXof}
+              currencyCode={currencyCode}
               walletAmount={concealMoney(formatAmount(walletAmountEstimate, currencyCode), isBalanceHidden)}
               isBalanceHidden={isBalanceHidden}
               providerName={provider?.name ?? "—"}
@@ -655,6 +697,7 @@ function SenderStep({
 
 function ReviewStep({
   amountXof,
+  currencyCode,
   walletAmount,
   isBalanceHidden,
   providerName,
@@ -664,6 +707,7 @@ function ReviewStep({
   onConfirm,
 }: {
   amountXof: number;
+  currencyCode: CurrencyCode;
   walletAmount: string;
   isBalanceHidden: boolean;
   providerName: string;
@@ -676,7 +720,7 @@ function ReviewStep({
     <View className="mt-6 flex-1 rounded-t-[28px] bg-white px-5 pb-8 pt-7">
       <Text allowFontScaling={false} className="text-[18px] font-semibold leading-[25px] text-zeno-text-primary">Review your deposit details</Text>
       <View className="mt-6 rounded-[20px] border border-black/5 bg-white px-5 py-4">
-        <SummaryRow label="Deposit amount" value={concealMoney(formatAmount(amountXof, "XOF"), isBalanceHidden)} />
+        <SummaryRow label="Deposit amount" value={concealMoney(formatAmount(amountXof, currencyCode), isBalanceHidden)} />
         <SummaryRow label="To ZENO Wallet" value={concealMoney(walletAmount, isBalanceHidden)} />
         <SummaryRow label="Via" value={`${providerName} · ${phoneNumber}`} />
       </View>
@@ -694,7 +738,7 @@ function ResultStep({ receipt, onContinue, isBalanceHidden }: { receipt: AddMone
   const description = completed
     ? "Your deposit has been confirmed."
     : pending
-      ? "Check your phone and approve the Mobile Money request to complete your deposit."
+      ? "The payment window is closed. Your wallet will update after PayDunya confirms the payment. You can check the status again in your transactions."
       : "The Mobile Money provider could not complete this deposit.";
   return (
     <View className="flex-1 px-5">
@@ -710,7 +754,7 @@ function ResultStep({ receipt, onContinue, isBalanceHidden }: { receipt: AddMone
         <View className="mt-auto rounded-t-[28px] bg-white px-5 pb-8 pt-7">
           <Text allowFontScaling={false} className="text-[22px] font-bold text-zeno-text-primary">Transaction receipt</Text>
           <View className="mt-5 rounded-[18px] bg-[#F7F8F7] px-4 py-3">
-            <SummaryRow label="Amount deposited" value={concealMoney(formatAmount(receipt.amountXof, "XOF"), isBalanceHidden)} />
+            <SummaryRow label="Amount deposited" value={concealMoney(formatAmount(receipt.amountXof, receipt.walletCurrency), isBalanceHidden)} />
             <SummaryRow label="Via" value={`${receipt.providerName} · ${receipt.phoneNumber}`} />
             <SummaryRow label="Reference" value={receipt.reference} />
             <SummaryRow label="Status" value={receipt.status} />
@@ -763,7 +807,7 @@ function PrimaryButton({ label, onPress, disabled = false, busy = false, tone = 
 function isSender(value: unknown): value is AddMoneySender {
   if (!value || typeof value !== "object") return false;
   const sender = value as Partial<AddMoneySender>;
-  return typeof sender.id === "string" && (sender.name === undefined || typeof sender.name === "string") && (sender.countryId === "benin" || sender.countryId === "cote-divoire") && typeof sender.phoneNumber === "string" && typeof sender.providerId === "string" && typeof sender.providerName === "string";
+  return typeof sender.id === "string" && (sender.name === undefined || typeof sender.name === "string") && supportedCountries.some((country) => country.id === sender.countryId) && typeof sender.phoneNumber === "string" && typeof sender.providerId === "string" && typeof sender.providerName === "string";
 }
 
 function getAccountPhoneSender(metadata: Record<string, unknown> | undefined): AddMoneySender | null {
@@ -793,5 +837,5 @@ function mergeSenderLists(...groups: AddMoneySender[][]): AddMoneySender[] {
 }
 
 function isAddMoneyCountry(value: unknown): value is AddMoneyCountry {
-  return value === "benin" || value === "cote-divoire";
+  return supportedCountries.some((country) => country.id === value && !country.isTestOnly);
 }

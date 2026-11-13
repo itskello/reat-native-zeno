@@ -39,6 +39,42 @@ export const currencies: Record<CurrencyCode, Currency> = {
     decimalSeparator: ",",
     thousandsSeparator: " ",
   },
+  GHS: {
+    code: "GHS",
+    symbol: "GH₵",
+    name: "Ghanaian cedi",
+    decimalDigits: 2,
+    symbolPosition: "prefix",
+    decimalSeparator: ".",
+    thousandsSeparator: ",",
+  },
+  NGN: {
+    code: "NGN",
+    symbol: "₦",
+    name: "Nigerian naira",
+    decimalDigits: 2,
+    symbolPosition: "prefix",
+    decimalSeparator: ".",
+    thousandsSeparator: ",",
+  },
+  XAF: {
+    code: "XAF",
+    symbol: "FCFA",
+    name: "Central African CFA franc",
+    decimalDigits: 0,
+    symbolPosition: "suffix",
+    decimalSeparator: ",",
+    thousandsSeparator: " ",
+  },
+  CDF: {
+    code: "CDF",
+    symbol: "FC",
+    name: "Congolese franc",
+    decimalDigits: 2,
+    symbolPosition: "suffix",
+    decimalSeparator: ".",
+    thousandsSeparator: ",",
+  },
 };
 
 /** The currency used when none is specified yet (both markets use XOF). */

@@ -23,10 +23,10 @@ export type WalletActivity = {
 };
 
 function fromMinorUnits(value: number, currency: CurrencyCode) {
-  return currency === "XOF" ? value : value / 100;
+  return currency === "XOF" || currency === "XAF" ? value : value / 100;
 }
 
-/** Ensures the signed-in user has USD, EUR, and XOF ledger accounts. */
+/** Ensures the signed-in user has all enabled ledger currency accounts. */
 export async function provisionWalletAccounts(sessionToken: string) {
   return postAuthenticated<{ ready: true }>(
     "/api/wallet/bootstrap",

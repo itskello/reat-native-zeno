@@ -119,7 +119,7 @@ Do not introduce new major libraries unless there is a strong reason.
 
 External Services
 
-- Smile Identity for KYC and identity verification
+- Didit or AiPrise for KYC and identity verification; provider selection is pending
 - Kollekt (preferred) or Senfenico for Mobile Money integration
 - A Virtual Card Issuing API for Visa virtual cards
 - SMS Provider for OTP verification

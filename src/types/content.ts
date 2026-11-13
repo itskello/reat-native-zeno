@@ -19,9 +19,9 @@ export type ImageAsset = number | { uri: string };
 /* -------------------------------------------------------------------------- */
 
 /** Stable identifier for a supported country. Add new markets here. */
-export type CountryId = "benin" | "cote-divoire" | "togo";
+export type CountryId = "benin" | "cote-divoire" | "togo" | "senegal" | "burkina-faso" | "mali" | "ghana" | "nigeria" | "cameroon" | "democratic-republic-of-congo";
 
-export type CountryIsoCode = "BEN" | "CIV" | "TGO";
+export type CountryIsoCode = "BEN" | "CIV" | "TGO" | "SEN" | "BFA" | "MLI" | "GHA" | "NGA" | "CMR" | "COD";
 
 /** KYC document types ZENO can accept for identity verification. */
 export type KycDocumentType = "national_id" | "passport" | "drivers_license";
@@ -52,7 +52,7 @@ export type SupportedCountry = {
 /* -------------------------------------------------------------------------- */
 
 /** ISO 4217 currency codes ZENO supports. Add new codes here. */
-export type CurrencyCode = "XOF" | "USD" | "EUR";
+export type CurrencyCode = "XOF" | "USD" | "EUR" | "GHS" | "NGN" | "XAF" | "CDF";
 
 export type Currency = {
   code: CurrencyCode;
@@ -75,7 +75,7 @@ export type Currency = {
 /* -------------------------------------------------------------------------- */
 
 /** Stable identifier for a Mobile Money operator. Add new providers here. */
-export type MobileMoneyProviderId = "mtn" | "moov" | "celtiis" | "orange";
+export type MobileMoneyProviderId = "mtn" | "moov" | "celtiis" | "orange" | "wave" | "free" | "expresso" | "wizall" | "mixx" | "tmoney" | "telecel" | "airteltigo" | "airtel" | "vodacom-mpesa" | "djamo";
 
 /** Operators whose brand mark is bundled in `images.providers`. */
 export type ProviderLogoKey = "mtn" | "moov" | "celtiis";
@@ -88,6 +88,8 @@ export type MobileMoneyProvider = {
   logoKey?: ProviderLogoKey;
   /** Countries where this provider is available. */
   availableIn: CountryId[];
+  /** Countries where this operator has a documented/implemented payout route. */
+  payoutAvailableIn?: CountryId[];
 };
 
 /* -------------------------------------------------------------------------- */

@@ -14,6 +14,8 @@ import { getFinancialTitleSegments } from "@/lib/localization";
 import { concealMoney } from "@/lib/money-visibility";
 import { ZenoCardLogo } from "@/components/wallet/ZenoCardLogo";
 import { transferService, type TransferReceipt } from "@/features/transfers/transfer-service";
+import { getWalletBalances } from "@/features/wallet/wallet-read-service";
+import { isFinancialSandboxEnabled } from "@/features/wallet/financial-mode";
 import { useRecipientStore, type Recipient } from "@/store/recipient-store";
 import { useSecurityStore } from "@/store/security-store";
 import { useTransactionStore } from "@/store/transaction-store";
@@ -207,7 +209,12 @@ export function TransferFlow({ contentTopGap, flow, onBackToMenu, initialRecipie
     setBusy(true);
     setError(null);
     setStep("processing");
-    const token = await getToken();
+    let token: string | null;
+    try {
+      token = await getTokenRef.current();
+    } catch {
+      token = null;
+    }
     if (!token) {
       setBusy(false);
       setStep(flow === "zeno" ? "zeno-pin" : "mobile-review");
@@ -282,6 +289,21 @@ export function TransferFlow({ contentTopGap, flow, onBackToMenu, initialRecipie
       reference: transfer.reference,
       paymentMethod: transfer.paymentMethod,
     });
+    if (flow === "zeno" && transfer.status === "completed" && !isFinancialSandboxEnabled) {
+      void getWalletBalances(getTokenRef.current)
+        .then((balances) => {
+          const updatedWallet = balances.find((item) => item.currency === transfer.currency);
+          if (updatedWallet) {
+            useWalletStore.getState().applyConfirmedWalletBalance(
+              updatedWallet.amount,
+              updatedWallet.currency,
+            );
+          }
+        })
+        .catch((cause) => {
+          if (__DEV__) console.warn("[transfer] Could not refresh confirmed wallet balance:", cause);
+        });
+    }
     setStep("result");
   };
 

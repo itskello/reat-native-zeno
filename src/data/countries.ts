@@ -39,6 +39,20 @@ export const supportedCountries: SupportedCountry[] = [
     defaultCurrency: "XOF",
     kycDocuments: ["national_id", "passport", "drivers_license"],
   },
+  ...([
+    { id: "senegal", name: "Sénégal", isoCode: "SEN", dialCode: "+221", nationalNumberLength: 9, defaultCurrency: "XOF", flagCode: "sn" },
+    { id: "burkina-faso", name: "Burkina Faso", isoCode: "BFA", dialCode: "+226", nationalNumberLength: 8, defaultCurrency: "XOF", flagCode: "bf" },
+    { id: "mali", name: "Mali", isoCode: "MLI", dialCode: "+223", nationalNumberLength: 8, defaultCurrency: "XOF", flagCode: "ml" },
+    { id: "ghana", name: "Ghana", isoCode: "GHA", dialCode: "+233", nationalNumberLength: 9, defaultCurrency: "GHS", flagCode: "gh" },
+    { id: "nigeria", name: "Nigeria", isoCode: "NGA", dialCode: "+234", nationalNumberLength: 10, defaultCurrency: "NGN", flagCode: "ng" },
+    { id: "cameroon", name: "Cameroun", isoCode: "CMR", dialCode: "+237", nationalNumberLength: 9, defaultCurrency: "XAF", flagCode: "cm" },
+    { id: "democratic-republic-of-congo", name: "République démocratique du Congo", isoCode: "COD", dialCode: "+243", nationalNumberLength: 9, defaultCurrency: "CDF", flagCode: "cd" },
+  ] as const).map((country) => ({
+    ...country,
+    phoneFormat: "#".repeat(country.nationalNumberLength),
+    flag: { uri: `https://flagcdn.com/w160/${country.flagCode}.png` },
+    kycDocuments: ["national_id", "passport", "drivers_license"] as SupportedCountry["kycDocuments"],
+  })),
 ];
 
 /** Look up a supported country by its id. */

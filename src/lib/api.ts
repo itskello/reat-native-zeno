@@ -48,8 +48,39 @@ function resolveBaseUrl() {
 
 const rawBaseUrl = resolveBaseUrl();
 
-function endpoint(path: string) {
-  return `${rawBaseUrl}${path}`;
+type SupabaseRuntimeConfig = {
+  EXPO_PUBLIC_SUPABASE_URL?: string;
+  EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY?: string;
+};
+
+function resolveRequest(path: string) {
+  const isFinancialRoute =
+    path === "/api/wallet/bootstrap" ||
+    path === "/api/security/pin" ||
+    path === "/api/transfers/zeno" ||
+    path === "/api/deposits/mobile-money" ||
+    path === "/api/withdrawals" ||
+    path.startsWith("/api/deposits/mobile-money?") ||
+    path.startsWith("/api/withdrawals?") ||
+    path.startsWith("/api/recipients");
+
+  if (isFinancialRoute) {
+    const extra = (Constants.expoConfig?.extra ?? {}) as SupabaseRuntimeConfig;
+    const supabaseUrl =
+      process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra.EXPO_PUBLIC_SUPABASE_URL;
+    const publishableKey =
+      process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+      extra.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    if (supabaseUrl && publishableKey) {
+      return {
+        url: `${supabaseUrl.replace(/\/$/, "")}/functions/v1/zeno-financial-api`,
+        headers: { apikey: publishableKey, "x-zeno-route": path },
+      };
+    }
+  }
+
+  return { url: `${rawBaseUrl}${path}`, headers: {} as Record<string, string> };
 }
 
 export type ApiResult<T> =
@@ -58,9 +89,10 @@ export type ApiResult<T> =
 
 async function post<T>(path: string, body: unknown): Promise<ApiResult<T>> {
   try {
-    const response = await fetch(endpoint(path), {
+    const target = resolveRequest(path);
+    const response = await fetch(target.url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...target.headers },
       body: JSON.stringify(body),
     });
 
@@ -99,11 +131,13 @@ export async function postAuthenticated<T>(
 ): Promise<ApiResult<T>> {
   try {
     const isMultipart = typeof FormData !== "undefined" && body instanceof FormData;
-    const response = await fetch(endpoint(path), {
+    const target = resolveRequest(path);
+    const response = await fetch(target.url, {
       method: "POST",
       headers: {
         ...(isMultipart ? {} : { "Content-Type": "application/json" }),
         Authorization: `Bearer ${sessionToken}`,
+        ...target.headers,
       },
       body: isMultipart ? body : JSON.stringify(body),
     });
@@ -149,9 +183,10 @@ export async function getAuthenticated<T>(
   signal?: AbortSignal
 ): Promise<ApiResult<T>> {
   try {
-    const response = await fetch(endpoint(path), {
+    const target = resolveRequest(path);
+    const response = await fetch(target.url, {
       method: "GET",
-      headers: { Authorization: `Bearer ${sessionToken}` },
+      headers: { Authorization: `Bearer ${sessionToken}`, ...target.headers },
       signal,
     });
     const payload = (await response.json().catch(() => ({}))) as Record<
@@ -181,9 +216,10 @@ export async function getAuthenticated<T>(
 /** Authenticated DELETE for a user-scoped resource. */
 export async function deleteAuthenticated<T>(path: string, sessionToken: string) {
   try {
-    const response = await fetch(endpoint(path), {
+    const target = resolveRequest(path);
+    const response = await fetch(target.url, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${sessionToken}` },
+      headers: { Authorization: `Bearer ${sessionToken}`, ...target.headers },
     });
     const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     if (!response.ok) {

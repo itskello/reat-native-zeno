@@ -245,6 +245,7 @@ export default function AddPhoneNumberScreen() {
         onClose={() => setIsCountrySheetOpen(false)}
         onSelect={handleSelectPhoneCountry}
         includeTestCountries
+        availableCountryIds={["benin", "cote-divoire", "togo"]}
       />
     </KeyboardAvoidingView>
   );

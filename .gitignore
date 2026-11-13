@@ -51,6 +51,9 @@ prompt1/ANIMIX/
 
 # typescript
 
+# Supabase CLI project metadata generated locally; never commit it.
+/supabase/.temp/
+
 
 # generated native folders
 /ios

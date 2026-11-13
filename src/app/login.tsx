@@ -268,7 +268,7 @@ export default function LoginScreen() {
         </View>
       </View>
       <Modal
-        visible={isLoginPending || isSubmitting || pendingProvider !== null}
+        visible={isLoginPending || isSubmitting || (pendingProvider !== null && pendingProvider !== "oauth_google")}
         transparent
         animationType="fade"
         statusBarTranslucent

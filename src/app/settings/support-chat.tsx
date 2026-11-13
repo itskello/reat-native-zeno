@@ -101,7 +101,8 @@ export default function SupportChatScreen() {
   const insets = useSafeAreaInsets();
   const language = useLanguageStore((state) => state.language);
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
-  const { prefillMessage, conversationId: requestedConversationId } = useLocalSearchParams<{ prefillMessage?: string; conversationId?: string }>();
+  const { prefillMessage, conversationId: requestedConversationId, requestAgent: requestAgentParam } = useLocalSearchParams<{ prefillMessage?: string; conversationId?: string; requestAgent?: string }>();
+  const shouldRequestAgent = requestAgentParam === "true";
   const scrollRef = useRef<ScrollView>(null);
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
@@ -187,7 +188,13 @@ export default function SupportChatScreen() {
     try {
       const sent = await channel.sendMessage({ text });
       delivered = true;
-      if (credentials?.status === "ai") {
+      if (shouldRequestAgent) {
+        const sessionToken = await getTokenRef.current();
+        if (!sessionToken) throw new Error("Session expirée. Reconnecte-toi.");
+        const response = await postAuthenticated<{ status: "waiting" }>("/api/support/handoff", sessionToken, { channelId: credentials?.channelId });
+        if (!response.ok) throw new Error(response.error);
+        setCredentials((current) => current ? { ...current, status: "waiting" } : current);
+      } else if (credentials?.status === "ai") {
         const sessionToken = await getTokenRef.current();
         if (!sessionToken) throw new Error("Session expirée. Reconnecte-toi.");
         const response = await postAuthenticated<{ answered?: boolean; handedOff?: boolean }>("/api/support/assistant", sessionToken, { channelId: credentials.channelId, messageId: sent.message.id, language });
@@ -197,13 +204,15 @@ export default function SupportChatScreen() {
       if (!delivered) {
         setInputText(text);
         showLocalizedAlert("Message non envoyé", "Vérifie ta connexion puis réessaie.");
+      } else if (shouldRequestAgent) {
+        showLocalizedAlert("Demande envoyée", "Ton message est envoyé, mais l’équipe n’a pas pu être avertie. Réessaie depuis le chat.");
       } else {
         showLocalizedAlert("Assistant indisponible", "Ton message est envoyé. Tu peux demander à parler à un agent.");
       }
     } finally {
       setSending(false);
     }
-  }, [credentials, language, sending]);
+  }, [credentials, language, sending, shouldRequestAgent]);
 
   const requestHumanAgent = useCallback(async () => {
     const sessionToken = await getTokenRef.current();

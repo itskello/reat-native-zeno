@@ -1,4 +1,4 @@
-import { postAuthenticated } from "@/lib/api";
+import { getAuthenticated, postAuthenticated } from "@/lib/api";
 import type { CountryId, CurrencyCode } from "@/types/content";
 
 export type WithdrawalReceipt = {
@@ -50,7 +50,7 @@ export const withdrawalService = {
       !withdrawal.recipientName ||
       !withdrawal.paymentMethod ||
       !["completed", "pending", "failed"].includes(withdrawal.status) ||
-      !["XOF", "USD", "EUR"].includes(withdrawal.currency) ||
+      !["XOF", "USD", "EUR", "GHS", "NGN", "XAF", "CDF"].includes(withdrawal.currency) ||
       !Number.isFinite(withdrawal.amount) ||
       !Number.isFinite(withdrawal.fee) ||
       !Number.isFinite(withdrawal.totalAmount)
@@ -61,6 +61,14 @@ export const withdrawalService = {
       };
     }
 
+    return result;
+  },
+
+  async getStatus(token: string, reference: string) {
+    const result = await getAuthenticated<{ withdrawal: WithdrawalReceipt }>(
+      `/api/withdrawals?reference=${encodeURIComponent(reference)}`,
+      token,
+    );
     return result;
   },
 };

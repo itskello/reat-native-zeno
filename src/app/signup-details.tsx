@@ -41,8 +41,6 @@ export default function CreateAccountScreen() {
   );
   const setSignUpMethod = useOnboardingStore((state) => state.setSignUpMethod);
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
@@ -62,19 +60,15 @@ export default function CreateAccountScreen() {
     const digits = phoneNumber.replace(/\D/g, "");
 
     return {
-      firstName: firstName.trim().length > 0,
-      lastName: lastName.trim().length > 0,
       email: EMAIL_PATTERN.test(email.trim()),
       phone: digits.length === phoneCountry.nationalNumberLength,
       password:
         password.length >= 9 && /[a-zA-Z]/.test(password) && /\d/.test(password),
       confirmPassword: confirmPassword.length > 0 && confirmPassword === password,
     };
-  }, [firstName, lastName, email, phoneNumber, password, confirmPassword, phoneCountry]);
+  }, [email, phoneNumber, password, confirmPassword, phoneCountry]);
 
   const isFormValid =
-    validation.firstName &&
-    validation.lastName &&
     validation.email &&
     validation.phone &&
     validation.password &&
@@ -102,8 +96,6 @@ export default function CreateAccountScreen() {
     setSignUpMethod("form");
 
     const started = await startSignUp({
-      firstName,
-      lastName,
       email: email.trim(),
       phoneNumber,
       password,
@@ -156,38 +148,6 @@ export default function CreateAccountScreen() {
           >
             Let&apos;s Get You Started
           </Text>
-
-          <Text className="mt-6 font-medium text-[16px] text-[#252525]" allowFontScaling={false}>
-            First name
-          </Text>
-          <View className="mt-3 h-[64px] justify-center rounded-[22px] bg-white px-6 shadow-card">
-            <TextInput
-              className="font-bold text-[17px] text-[#161616]"
-              placeholder="First name"
-              placeholderTextColor="#B4B4B4"
-              value={firstName}
-              onChangeText={setFirstName}
-              autoCapitalize="words"
-              autoCorrect={false}
-              allowFontScaling={false}
-            />
-          </View>
-
-          <Text className="mt-5 font-medium text-[16px] text-[#252525]" allowFontScaling={false}>
-            Last name
-          </Text>
-          <View className="mt-3 h-[64px] justify-center rounded-[22px] bg-white px-6 shadow-card">
-            <TextInput
-              className="font-bold text-[17px] text-[#161616]"
-              placeholder="Last name"
-              placeholderTextColor="#B4B4B4"
-              value={lastName}
-              onChangeText={setLastName}
-              autoCapitalize="words"
-              autoCorrect={false}
-              allowFontScaling={false}
-            />
-          </View>
 
           <Pressable
             className="mt-6 h-[64px] flex-row items-center rounded-[22px] bg-white px-6 shadow-card"
@@ -401,9 +361,10 @@ export default function CreateAccountScreen() {
         onClose={() => setIsCountrySheetOpen(false)}
         onSelect={handleSelectPhoneCountry}
         includeTestCountries
+        availableCountryIds={["benin", "cote-divoire", "togo"]}
       />
       <Modal
-        visible={isContinuing || isSubmitting || pendingProvider !== null}
+        visible={isContinuing || isSubmitting || (pendingProvider !== null && pendingProvider !== "oauth_google")}
         transparent
         animationType="fade"
         statusBarTranslucent
